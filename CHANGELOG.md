@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.6] — 2026-04-04
+
+### Corrigé
+
+- **Recherche vide** : retrait du filtre `+subject:comics` — le catalogage Google Books est trop hétérogène pour ce filtre ; la recherche est de nouveau sans restriction de sujet
+
+---
+
 ## [1.4.5] — 2026-04-04
 
 ### Modifié

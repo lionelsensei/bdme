@@ -69,7 +69,7 @@ Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) 
 
 Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :
 
-- **Recherche** : `GET /volumes?q={query}+subject:comics&maxResults=40` (sans `langRestrict` pour inclure comics EN, manga, etc.)
+- **Recherche** : `GET /volumes?q={query}&maxResults=40` (sans filtre de sujet ni `langRestrict` — le catalogage Google Books est trop hétérogène pour filtrer par genre)
 - **ISBN** : `GET /volumes?q=isbn:{ean}`
 - **Fiche** : `GET /volumes/{volumeId}`
 
