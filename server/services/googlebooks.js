@@ -78,7 +78,7 @@ async function search(query, apiKey) {
   const cached   = cache.get(cacheKey);
   if (cached) return cached;
 
-  const params = { q: query, maxResults: 20, printType: 'books', langRestrict: 'fr' };
+  const params = { q: query, maxResults: 40, printType: 'books', langRestrict: 'fr' };
   if (apiKey) params.key = apiKey;
 
   try {

@@ -5,6 +5,22 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.2] — 2026-04-04
+
+### Modifié
+
+- **Limite de résultats de recherche** : `maxResults` passé de 20 à 40 (maximum autorisé par l'API Google Books)
+
+---
+
+## [1.4.1] — 2026-04-04
+
+### Corrigé
+
+- **Tri par tome** : à l'intérieur d'un dossier série, les albums sont désormais triés par numéro de tome croissant ; les albums sans tome apparaissent en dernier
+
+---
+
 ## [1.4.0] — 2026-04-04
 
 ### Ajouté

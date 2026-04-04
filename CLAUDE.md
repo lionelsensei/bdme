@@ -68,7 +68,7 @@ Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) 
 
 Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :
 
-- **Recherche** : `GET /volumes?q={query}&langRestrict=fr&maxResults=20`
+- **Recherche** : `GET /volumes?q={query}&langRestrict=fr&maxResults=40`
 - **ISBN** : `GET /volumes?q=isbn:{ean}`
 - **Fiche** : `GET /volumes/{volumeId}`
 
@@ -118,7 +118,7 @@ Bouton "⊟ Séries" dans les actions (actif par défaut). Quand activé, les al
 - Quand le groupement est actif et qu'aucun dossier n'est ouvert : les séries sont affichées comme des cartes dossier (`SeriesFolderCard` en grille, `SeriesFolderRow` en liste)
 - Grille : effet d'empilement (jusqu'à 3 couvertures décalées et pivotées), pastille dorée avec le nombre d'albums
 - Liste : première couverture + nom de la série + nombre d'albums + flèche `›`
-- Clic sur un dossier → affiche les albums de cette série avec un fil d'ariane `← Séries · Nom · N albums`
+- Clic sur un dossier → affiche les albums de cette série triés par numéro de tome croissant (albums sans tome en dernier), avec un fil d'ariane `← Séries · Nom · N albums`
 - Retour au dossier : bouton `← Séries` ou changement de filtre/recherche/groupement
 - La barre de recherche et les filtres de statut sont masqués quand un dossier est ouvert
 

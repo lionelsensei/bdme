@@ -97,9 +97,14 @@ export default function CollectionPage() {
     })
   }, [filtered, groupBySeries])
 
-  const openSeriesBooks = useMemo(() =>
-    grouped?.find(([key]) => key === openSeries)?.[1] ?? [],
-  [grouped, openSeries])
+  const openSeriesBooks = useMemo(() => {
+    const list = grouped?.find(([key]) => key === openSeries)?.[1] ?? []
+    return [...list].sort((a, b) => {
+      const ta = a.tome != null ? Number(a.tome) : Infinity
+      const tb = b.tome != null ? Number(b.tome) : Infinity
+      return ta - tb
+    })
+  }, [grouped, openSeries])
 
   function handleUpdate(updated) { setBooks(bs => bs.map(b => b.id === updated.id ? updated : b)); setSelected(updated) }
   function handleDelete(id)      { setBooks(bs => bs.filter(b => b.id !== id)); setSelected(null) }
