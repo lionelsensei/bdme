@@ -68,6 +68,10 @@ Rate limiting global : 200 req/15 min. Route `/api/search` : 30 req/min.
 
 Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`) pour scanner un EAN ou saisir manuellement un album.
 
+### Ajout à la collection / wishlist (`SearchPage.jsx`)
+
+Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id` pour récupérer la fiche complète (auteur, dessinateur, éditeur, genre, synopsis, EAN). Le résultat de la liste BDGest ne contient que titre, série, tome, année et couverture — les auteurs ne sont disponibles que sur la fiche détaillée. La réponse est mise en cache serveur 1 h (`node-cache`).
+
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.

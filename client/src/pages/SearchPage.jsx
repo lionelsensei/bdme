@@ -9,10 +9,17 @@ function SearchResultItem({ result }) {
   const [addingCol,  setAddingCol]  = useState(false)
   const [addingWish, setAddingWish] = useState(false)
 
+  async function fetchDetails() {
+    if (!result.bdgest_id) return result
+    try { return { ...result, ...await api.get(`/search/album/${result.bdgest_id}`) } }
+    catch { return result }
+  }
+
   async function addToCollection() {
     setAddingCol(true)
     try {
-      await api.post('/books', { bdgest_id: result.bdgest_id, title: result.title, series: result.series, tome: result.tome, author: result.author, illustrator: result.illustrator, publisher: result.publisher, year: result.year, cover_url: result.cover_url })
+      const d = await fetchDetails()
+      await api.post('/books', { bdgest_id: d.bdgest_id, title: d.title, series: d.series, tome: d.tome, author: d.author, illustrator: d.illustrator, publisher: d.publisher, year: d.year, genre: d.genre, ean: d.ean, cover_url: d.cover_url, synopsis: d.synopsis })
       setInCol(true); toast(`"${result.title}" ajouté à la collection`)
     } catch (e) { toast(e.message === 'Cet album est déjà dans votre collection' ? 'Déjà dans votre collection' : e.message, 'error') }
     finally { setAddingCol(false) }
@@ -21,7 +28,8 @@ function SearchResultItem({ result }) {
   async function addToWishlist() {
     setAddingWish(true)
     try {
-      await api.post('/wishlist', { bdgest_id: result.bdgest_id, title: result.title, series: result.series, tome: result.tome, author: result.author, publisher: result.publisher, year: result.year, cover_url: result.cover_url })
+      const d = await fetchDetails()
+      await api.post('/wishlist', { bdgest_id: d.bdgest_id, title: d.title, series: d.series, tome: d.tome, author: d.author, publisher: d.publisher, year: d.year, cover_url: d.cover_url })
       setInWish(true); toast(`"${result.title}" ajouté aux souhaits`)
     } catch (e) { toast(e.message, 'error') }
     finally { setAddingWish(false) }

@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.1] — 2026-04-04
+
+### Corrigé
+
+- **Ajout à la collection** : appel préalable à la fiche détaillée BDGest (`/api/search/album/:id`) avant enregistrement, afin de récupérer scénariste, dessinateur, éditeur, genre, synopsis et EAN — ces données sont absentes des résultats de liste BDGest
+- **Ajout à la wishlist** : même correctif pour l'auteur et l'éditeur
+
+---
+
 ## [1.1.0] — 2026-04-04
 
 ### Modifié
