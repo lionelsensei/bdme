@@ -178,7 +178,7 @@ export default function CollectionPage() {
         </div>
       ) : grouped ? renderFolders() : renderBooks(filtered)}
 
-      {selected && <BookModal book={selected} onClose={() => setSelected(null)} onUpdate={handleUpdate} onDelete={handleDelete} />}
+      {selected && <BookModal book={selected} onClose={() => setSelected(null)} onUpdate={handleUpdate} onDelete={handleDelete} allSeries={[...new Set(books.map(b => b.series).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))} />}
     </>
   )
 }

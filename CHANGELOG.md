@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.2] — 2026-04-04
+
+### Ajouté
+
+- **Édition de la série** : dans le modal d'un album, un bouton ✎ permet de modifier manuellement la série — champ texte avec autocomplétion sur les séries existantes de la collection ; laisser vide pour retirer l'album de toute série
+
+---
+
 ## [1.5.1] — 2026-04-04
 
 ### Corrigé

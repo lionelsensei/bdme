@@ -136,6 +136,8 @@ Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ea
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
 - **Auteurs** : scénariste et dessinateur avec mention `(scénario)` / `(dessin)`. Fusionnés si identiques.
 - **Statut de lecture** : 3 boutons (Non lu / En cours / Lu), colorés selon le statut, sauvegarde immédiate.
+- **Édition de la série** : bouton ✎ à côté du nom de série dans l'en-tête du modal — ouvre un champ texte avec autocomplétion (`datalist`) sur les séries existantes de la collection (prop `allSeries` passée depuis `CollectionPage`) ; laisser vide retire l'album de toute série ; PATCH `/api/books/:id` avec `{ series }`.
+
 
 ## Design system
 

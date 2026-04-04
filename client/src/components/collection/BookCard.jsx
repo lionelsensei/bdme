@@ -40,12 +40,14 @@ export function BookCardRow({ book, onClick }) {
   )
 }
 
-export function BookModal({ book, onClose, onUpdate, onDelete }) {
+export function BookModal({ book, onClose, onUpdate, onDelete, allSeries = [] }) {
   const toast = useToast()
-  const [status, setStatus] = useState(book.read_status)
-  const [saving, setSaving] = useState(false)
+  const [status,        setStatus]        = useState(book.read_status)
+  const [saving,        setSaving]        = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [data, setData] = useState(book)
+  const [data,          setData]          = useState(book)
+  const [editingSeries, setEditingSeries] = useState(false)
+  const [seriesInput,   setSeriesInput]   = useState(book.series || '')
 
   useEffect(() => {
     if (!book.bdgest_id || (book.author && book.cover_url)) return
@@ -81,6 +83,17 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
     finally { setSaving(false) }
   }
 
+  async function saveSeries() {
+    const newSeries = seriesInput.trim() || null
+    try {
+      const updated = await api.patch(`/books/${book.id}`, { series: newSeries })
+      setData(d => ({ ...d, series: newSeries }))
+      onUpdate({ ...updated, series: newSeries })
+      setEditingSeries(false)
+      toast('Série mise à jour')
+    } catch (e) { toast(e.message, 'error') }
+  }
+
   async function handleDelete() {
     try {
       await api.delete(`/books/${book.id}`)
@@ -93,9 +106,33 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h2 className="modal-title">{data.title}</h2>
-            {data.series && <p style={{ fontSize: '0.85rem', color: 'var(--text3)', marginTop: '4px' }}>{data.series}{data.tome ? ` — Tome ${data.tome}` : ''}</p>}
+            {!editingSeries ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text3)' }}>
+                  {data.series ? `${data.series}${data.tome ? ` — Tome ${data.tome}` : ''}` : <em style={{ opacity: 0.5 }}>Sans série</em>}
+                </span>
+                <button onClick={() => { setSeriesInput(data.series || ''); setEditingSeries(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: '0.75rem', padding: '0 4px', opacity: 0.6 }} title="Modifier la série">✎</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                <input
+                  list="series-list"
+                  className="input"
+                  value={seriesInput}
+                  onChange={e => setSeriesInput(e.target.value)}
+                  placeholder="Nom de la série…"
+                  style={{ fontSize: '0.85rem', padding: '4px 8px', height: 'auto' }}
+                  autoFocus
+                />
+                <datalist id="series-list">
+                  {allSeries.map(s => <option key={s} value={s} />)}
+                </datalist>
+                <button className="btn btn-primary btn-sm" onClick={saveSeries}>OK</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditingSeries(false)}>✕</button>
+              </div>
+            )}
           </div>
           <button className="btn btn-icon" onClick={onClose} style={{ fontSize: '1.2rem', color: 'var(--text2)' }}>✕</button>
         </div>
