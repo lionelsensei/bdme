@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.3] — 2026-04-04
+
+### Corrigé
+
+- **Modal changelog vide** : l'endpoint `GET /changelog` déplacé sous `GET /api/changelog` pour être correctement proxifié par nginx sur le VPS — le frontend fetche désormais `/api/changelog`
+
+---
+
 ## [1.4.2] — 2026-04-04
 
 ### Modifié

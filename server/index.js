@@ -38,7 +38,7 @@ const searchLimiter = rateLimit({
 });
 
 app.get('/health',    (req, res) => res.json({ status: 'ok', app: 'BDme' }));
-app.get('/changelog', (req, res) => {
+app.get('/api/changelog', (req, res) => {
   try {
     const content = fs.readFileSync(path.join(__dirname, '../CHANGELOG.md'), 'utf8');
     res.type('text/plain; charset=utf-8').send(content);

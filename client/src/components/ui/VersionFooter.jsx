@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const VERSION = 'v1.4.2'
+const VERSION = 'v1.4.3'
 const BASE    = import.meta.env.VITE_API_URL || ''
 
 function renderChangelog(text) {
@@ -18,7 +18,7 @@ function ChangelogModal({ onClose }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${BASE}/changelog`)
+    fetch(`${BASE}/api/changelog`)
       .then(r => r.text())
       .then(t => { setContent(t); setLoading(false) })
       .catch(() => setLoading(false))
