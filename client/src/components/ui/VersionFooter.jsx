@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../../hooks/useAuth'
 
-const VERSION = 'v1.4.3'
+const VERSION = 'v1.4.4'
 const BASE    = import.meta.env.VITE_API_URL || ''
 
 function renderChangelog(text) {
@@ -43,6 +44,8 @@ function ChangelogModal({ onClose }) {
 
 export default function VersionFooter() {
   const [open, setOpen] = useState(false)
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'admin'
 
   const linkStyle = {
     background: 'none', border: 'none', cursor: 'pointer',
@@ -55,8 +58,10 @@ export default function VersionFooter() {
     <>
       <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
         <span>{VERSION}</span>
-        <span style={{ opacity: 0.5 }}>·</span>
-        <button style={linkStyle} onClick={() => setOpen(true)}>changelog</button>
+        {isAdmin && <>
+          <span style={{ opacity: 0.5 }}>·</span>
+          <button style={linkStyle} onClick={() => setOpen(true)}>changelog</button>
+        </>}
       </div>
       {open && <ChangelogModal onClose={() => setOpen(false)} />}
     </>

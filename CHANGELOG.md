@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.4] — 2026-04-04
+
+### Modifié
+
+- **Changelog réservé aux admins** : le lien "changelog" dans `VersionFooter` n'est affiché que si `profile.role === 'admin'` — invisible pour les utilisateurs standard et sur la page de login
+
+---
+
 ## [1.4.3] — 2026-04-04
 
 ### Corrigé
