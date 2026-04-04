@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.2] — 2026-04-04
+
+### Corrigé
+
+- **Modal album** : enrichissement automatique à l'ouverture pour les albums sans auteurs — si `bdgest_id` est présent et `author`/`illustrator` vides, la fiche BDGest est récupérée silencieusement, les champs manquants sont patchés en base et l'affichage se met à jour sans fermer le modal. Couvre les albums ajoutés avant la version 1.1.1.
+
+---
+
 ## [1.1.1] — 2026-04-04
 
 ### Corrigé

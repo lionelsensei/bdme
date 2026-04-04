@@ -74,6 +74,8 @@ Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id
 
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
+À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides (albums ajoutés avant le correctif 1.1.1), le modal appelle silencieusement `/api/search/album/:bdgest_id`, patche les champs manquants en base (`author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`) via `PATCH /api/books/:id`, et met à jour l'affichage. L'état local `data` (distinct de `book`) permet la mise à jour réactive sans fermer le modal.
+
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
 - **Auteurs** : scénariste et dessinateur affichés séparément avec mention `(scénario)` / `(dessin)`. Si identiques, affiché une seule fois. Label "Auteurs" au pluriel uniquement si les deux diffèrent.
 - **Statut de lecture** : 3 boutons côte à côte (Non lu / En cours / Lu) remplaçant la liste déroulante. Le bouton actif est coloré selon le statut (gris / doré / vert). La sauvegarde est immédiate au clic.

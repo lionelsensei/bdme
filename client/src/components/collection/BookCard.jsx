@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../lib/api'
 import { useToast } from '../../hooks/useToast'
 
@@ -45,6 +45,22 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
   const [status, setStatus] = useState(book.read_status)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [data, setData] = useState(book)
+
+  useEffect(() => {
+    if (!book.bdgest_id || (book.author && book.illustrator)) return
+    api.get(`/search/album/${book.bdgest_id}`)
+      .then(async details => {
+        const patch = {}
+        const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean']
+        for (const f of fields) { if (details[f] && !book[f]) patch[f] = details[f] }
+        if (Object.keys(patch).length === 0) return
+        const updated = await api.patch(`/books/${book.id}`, patch)
+        setData(updated)
+        onUpdate(updated)
+      })
+      .catch(() => {})
+  }, [book.bdgest_id])
 
   async function saveStatus(val) {
     setStatus(val); setSaving(true)
@@ -68,29 +84,29 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
       <div className="modal">
         <div className="modal-header">
           <div>
-            <h2 className="modal-title">{book.title}</h2>
-            {book.series && <p style={{ fontSize: '0.85rem', color: 'var(--text3)', marginTop: '4px' }}>{book.series}{book.tome ? ` — Tome ${book.tome}` : ''}</p>}
+            <h2 className="modal-title">{data.title}</h2>
+            {data.series && <p style={{ fontSize: '0.85rem', color: 'var(--text3)', marginTop: '4px' }}>{data.series}{data.tome ? ` — Tome ${data.tome}` : ''}</p>}
           </div>
           <button className="btn btn-icon" onClick={onClose} style={{ fontSize: '1.2rem', color: 'var(--text2)' }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
-          {book.cover_url && <img src={book.cover_url} alt={book.title} style={{ width: 90, height: 135, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
+          {data.cover_url && <img src={data.cover_url} alt={data.title} style={{ width: 90, height: 135, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {book.tome != null && (
+            {data.tome != null && (
               <div>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Tome</span>
-                <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>#{book.tome}</div>
+                <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>#{data.tome}</div>
               </div>
             )}
-            {(book.author || book.illustrator) && (
+            {(data.author || data.illustrator) && (
               <div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Auteur{book.author && book.illustrator && book.author !== book.illustrator ? 's' : ''}</span>
-                {book.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{book.author} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(scénario)</span></div>}
-                {book.illustrator && book.illustrator !== book.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{book.illustrator} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(dessin)</span></div>}
+                <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Auteur{data.author && data.illustrator && data.author !== data.illustrator ? 's' : ''}</span>
+                {data.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{data.author} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(scénario)</span></div>}
+                {data.illustrator && data.illustrator !== data.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{data.illustrator} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(dessin)</span></div>}
               </div>
             )}
-            {[['Éditeur', book.publisher], ['Année', book.year], ['Genre', book.genre]].filter(([, v]) => v).map(([k, v]) => (
+            {[['Éditeur', data.publisher], ['Année', data.year], ['Genre', data.genre]].filter(([, v]) => v).map(([k, v]) => (
               <div key={k}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{k}</span>
                 <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{v}</div>
@@ -99,7 +115,7 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
           </div>
         </div>
 
-        {book.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }}>{book.synopsis}</p>}
+        {data.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }}>{data.synopsis}</p>}
 
         <div style={{ marginBottom: '20px' }}>
           <span className="form-label" style={{ display: 'block', marginBottom: '10px' }}>Statut de lecture</span>
