@@ -68,6 +68,12 @@ Rate limiting global : 200 req/15 min. Route `/api/search` : 30 req/min.
 
 Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`) pour scanner un EAN ou saisir manuellement un album.
 
+### Modal détail album (`BookModal` dans `BookCard.jsx`)
+
+- **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
+- **Auteurs** : scénariste et dessinateur affichés séparément avec mention `(scénario)` / `(dessin)`. Si identiques, affiché une seule fois. Label "Auteurs" au pluriel uniquement si les deux diffèrent.
+- **Statut de lecture** : 3 boutons côte à côte (Non lu / En cours / Lu) remplaçant la liste déroulante. Le bouton actif est coloré selon le statut (gris / doré / vert). La sauvegarde est immédiate au clic.
+
 ## Design system
 
 Thème sombre. Variables CSS dans `client/src/styles/global.css`.
@@ -77,6 +83,7 @@ Thème sombre. Variables CSS dans `client/src/styles/global.css`.
 - Polices : `DM Serif Display` (titres), `DM Sans` (corps)
 - Indicateurs de statut : point vert (lu), doré (en cours), gris (non lu)
 - Badges : vert `badge-collection`, doré `badge-wishlist`
+- Version affichée discrètement (opacité 0.7) en bas de la page de login et en bas de chaque page authentifiée, au format `vX.Y.Z`
 
 ## Source externe — BDGest / Bedetheque
 

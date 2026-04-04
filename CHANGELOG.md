@@ -5,7 +5,20 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.0] — 2026-04-04
+
+### Modifié
+
+- **Modal album** : remplacement de la liste déroulante du statut de lecture par 3 boutons visuels (Non lu / En cours / Lu), colorés selon le statut, avec sauvegarde immédiate au clic
+- **Modal album** : affichage du numéro de tome en grand (police serif) dans les métadonnées
+- **Modal album** : détail des auteurs avec distinction scénariste / dessinateur ; label "Auteurs" au pluriel si les deux diffèrent ; auteur unique si scénariste = dessinateur
+- **Version** : indicateur `v1.1` affiché discrètement en bas de la page de login et en bas de chaque page authentifiée (opacité 0.7)
+
+---
+
 ## [1.0.0] — 2026-04-04
+
+
 
 ### Ajouté
 

@@ -4,6 +4,9 @@ import { useToast } from '../../hooks/useToast'
 
 const STATUS_LABELS = { unread: 'Non lu', reading: 'En cours', read: 'Lu' }
 const STATUS_CLASS  = { unread: 'status-unread', reading: 'status-reading', read: 'status-read' }
+const STATUS_COLORS = { unread: 'var(--text3)', reading: 'var(--accent)', read: 'var(--green)' }
+const STATUS_BG     = { unread: 'rgba(94,90,84,0.15)', reading: 'rgba(232,201,122,0.12)', read: 'rgba(92,186,138,0.12)' }
+const STATUS_BORDER = { unread: 'rgba(94,90,84,0.3)', reading: 'rgba(232,201,122,0.3)', read: 'rgba(92,186,138,0.3)' }
 
 export function BookCardGrid({ book, onClick }) {
   return (
@@ -73,8 +76,21 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
 
         <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
           {book.cover_url && <img src={book.cover_url} alt={book.title} style={{ width: 90, height: 135, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[['Scénariste', book.author], ['Dessinateur', book.illustrator], ['Éditeur', book.publisher], ['Année', book.year], ['Genre', book.genre]].filter(([, v]) => v).map(([k, v]) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {book.tome != null && (
+              <div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Tome</span>
+                <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>#{book.tome}</div>
+              </div>
+            )}
+            {(book.author || book.illustrator) && (
+              <div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>Auteur{book.author && book.illustrator && book.author !== book.illustrator ? 's' : ''}</span>
+                {book.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{book.author} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(scénario)</span></div>}
+                {book.illustrator && book.illustrator !== book.author && <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{book.illustrator} <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>(dessin)</span></div>}
+              </div>
+            )}
+            {[['Éditeur', book.publisher], ['Année', book.year], ['Genre', book.genre]].filter(([, v]) => v).map(([k, v]) => (
               <div key={k}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{k}</span>
                 <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{v}</div>
@@ -85,13 +101,36 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
 
         {book.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }}>{book.synopsis}</p>}
 
-        <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label className="form-label">Statut de lecture</label>
-          <select className="status-select input" value={status} onChange={e => saveStatus(e.target.value)} disabled={saving}>
-            <option value="unread">Non lu</option>
-            <option value="reading">En cours</option>
-            <option value="read">Lu</option>
-          </select>
+        <div style={{ marginBottom: '20px' }}>
+          <span className="form-label" style={{ display: 'block', marginBottom: '10px' }}>Statut de lecture</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['unread', 'reading', 'read']).map(s => (
+              <button
+                key={s}
+                onClick={() => status !== s && saveStatus(s)}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  padding: '10px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${status === s ? STATUS_BORDER[s] : 'var(--border)'}`,
+                  background: status === s ? STATUS_BG[s] : 'transparent',
+                  color: status === s ? STATUS_COLORS[s] : 'var(--text3)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.82rem',
+                  cursor: status === s ? 'default' : 'pointer',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[s], display: 'block', opacity: status === s ? 1 : 0.4 }} />
+                {STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
