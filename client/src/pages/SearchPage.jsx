@@ -2,6 +2,13 @@ import { useState, useRef, useCallback } from 'react'
 import { api } from '../lib/api'
 import { useToast } from '../hooks/useToast'
 
+const SOURCES = [
+  { value: 'googlebooks',  label: 'Google Books',  external: false },
+  { value: 'openlibrary',  label: 'Open Library',  external: false },
+  { value: 'bdgest',       label: 'BDGest',         external: true,  url: q => `https://www.bdgest.com/search/?op=bdgest&q=${encodeURIComponent(q)}` },
+  { value: 'amazon',       label: 'Amazon',         external: true,  url: q => `https://www.amazon.fr/s?k=${encodeURIComponent(q)}&i=stripbooks` },
+]
+
 function SearchResultItem({ result }) {
   const toast = useToast()
   const [inCol,  setInCol]  = useState(result.in_collection)
@@ -10,7 +17,7 @@ function SearchResultItem({ result }) {
   const [addingWish, setAddingWish] = useState(false)
 
   async function fetchDetails() {
-    if (!result.bdgest_id) return result
+    if (!result.bdgest_id || result.bdgest_id.startsWith('ol:')) return result
     try { return { ...result, ...await api.get(`/search/album/${result.bdgest_id}`) } }
     catch { return result }
   }
@@ -70,21 +77,29 @@ function SearchResultItem({ result }) {
 
 export default function SearchPage() {
   const toast = useToast()
-  const [query,      setQuery]      = useState('')
-  const [results,    setResults]    = useState([])
-  const [loading,    setLoading]    = useState(false)
+  const [query,       setQuery]       = useState('')
+  const [source,      setSource]      = useState('googlebooks')
+  const [results,     setResults]     = useState([])
+  const [loading,     setLoading]     = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [searched,   setSearched]   = useState(false)
-  const [startIndex, setStartIndex] = useState(0)
-  const [hasMore,    setHasMore]    = useState(false)
+  const [searched,    setSearched]    = useState(false)
+  const [startIndex,  setStartIndex]  = useState(0)
+  const [hasMore,     setHasMore]     = useState(false)
   const inputRef    = useRef(null)
   const debounceRef = useRef(null)
 
-  const doSearch = useCallback(async (q) => {
+  const currentSource = SOURCES.find(s => s.value === source)
+
+  const doSearch = useCallback(async (q, src) => {
     if (!q.trim() || q.trim().length < 2) { setResults([]); setSearched(false); setStartIndex(0); setHasMore(false); return }
+    const sourceDef = SOURCES.find(s => s.value === src)
+    if (sourceDef?.external) {
+      window.open(sourceDef.url(q.trim()), '_blank', 'noopener')
+      return
+    }
     setLoading(true); setSearched(true); setStartIndex(0)
     try {
-      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(q.trim())}`)
+      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(q.trim())}&source=${src}`)
       setResults(res)
       setHasMore(res.length > 0 && res.length < totalItems)
     }
@@ -96,7 +111,7 @@ export default function SearchPage() {
     const next = startIndex + 40
     setLoadingMore(true)
     try {
-      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(query.trim())}&startIndex=${next}`)
+      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(query.trim())}&source=${source}&startIndex=${next}`)
       setResults(prev => [...prev, ...res])
       setStartIndex(next)
       setHasMore(res.length > 0 && (next + res.length) < totalItems)
@@ -108,21 +123,43 @@ export default function SearchPage() {
   function handleChange(e) {
     const val = e.target.value; setQuery(val)
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => doSearch(val), 600)
+    if (!currentSource?.external)
+      debounceRef.current = setTimeout(() => doSearch(val, source), 600)
   }
 
-  function handleSubmit(e) { e.preventDefault(); clearTimeout(debounceRef.current); doSearch(query) }
+  function handleSourceChange(e) {
+    const val = e.target.value
+    setSource(val)
+    setResults([]); setSearched(false); setStartIndex(0); setHasMore(false)
+  }
+
+  function handleSubmit(e) { e.preventDefault(); clearTimeout(debounceRef.current); doSearch(query, source) }
 
   return (
     <>
       <div className="section-header"><h1 className="section-title">Rechercher une BD</h1></div>
 
       <form onSubmit={handleSubmit} style={{ marginBottom: '24px' }}>
-        <div className="search-bar">
-          <span className="search-bar-icon">⌕</span>
-          <input ref={inputRef} className="input" placeholder="Titre, série, auteur…" value={query} onChange={handleChange} autoFocus />
-          {query && <button type="button" className="search-bar-clear" onClick={() => { setQuery(''); setResults([]); setSearched(false); inputRef.current?.focus() }}>✕</button>}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="search-bar" style={{ flex: 1 }}>
+            <span className="search-bar-icon">⌕</span>
+            <input ref={inputRef} className="input" placeholder="Titre, série, auteur…" value={query} onChange={handleChange} autoFocus />
+            {query && <button type="button" className="search-bar-clear" onClick={() => { setQuery(''); setResults([]); setSearched(false); inputRef.current?.focus() }}>✕</button>}
+          </div>
+          <select
+            value={source}
+            onChange={handleSourceChange}
+            className="input"
+            style={{ width: 'auto', flexShrink: 0, fontSize: '0.85rem', paddingRight: '28px' }}
+          >
+            {SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
         </div>
+        {currentSource?.external && query.trim().length >= 2 && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginTop: '8px' }}>
+            {currentSource.label} ne dispose pas d'API publique — la recherche ouvrira un nouvel onglet.
+          </p>
+        )}
       </form>
 
       {loading && (
@@ -143,7 +180,7 @@ export default function SearchPage() {
       {!loading && results.length > 0 && (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginBottom: '12px' }}>
-            {results.length} résultat{results.length !== 1 ? 's' : ''} affiché{results.length !== 1 ? 's' : ''}
+            {results.length} résultat{results.length !== 1 ? 's' : ''} affiché{results.length !== 1 ? 's' : ''} — {currentSource?.label}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {results.map((r, i) => <SearchResultItem key={r.bdgest_id || i} result={r} />)}

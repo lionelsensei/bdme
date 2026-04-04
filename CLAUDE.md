@@ -65,6 +65,21 @@ Rate limiting global : 200 req/15 min. Route `/api/search` : 30 req/min.
 
 Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) → variable d'env `GOOGLE_BOOKS_API_KEY`. Sans clé, l'API Google Books fonctionne mais avec un quota limité.
 
+## Sources de recherche
+
+La page de recherche propose un dropdown pour choisir parmi 4 sources :
+
+| Source        | Type      | Intégration                                                        |
+|---------------|-----------|--------------------------------------------------------------------|
+| Google Books  | in-app    | API `googleapis.com/books/v1` (clé optionnelle)                   |
+| Open Library  | in-app    | API `openlibrary.org/search.json` (gratuite, sans clé)            |
+| BDGest        | externe   | Ouvre `bdgest.com/search/` dans un nouvel onglet                  |
+| Amazon        | externe   | Ouvre `amazon.fr/s?i=stripbooks` dans un nouvel onglet            |
+
+`GET /api/search?q=&startIndex=&source=` accepte `source=googlebooks` (défaut) ou `source=openlibrary`. Les sources externes sont gérées côté client uniquement.
+
+Le service `server/services/openlibrary.js` interroge `https://openlibrary.org/search.json` avec `subject=comics` et retourne `{ results, totalItems }`.
+
 ## Source externe — Google Books API
 
 Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :

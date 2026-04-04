@@ -5,6 +5,19 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-04-04
+
+### Ajouté
+
+- **Choix du moteur de recherche** : liste déroulante à côté de la barre de recherche avec 4 sources :
+  - **Google Books** : moteur par défaut, API intégrée in-app
+  - **Open Library** : nouveau moteur in-app via l'API openlibrary.org (gratuite, sans clé)
+  - **BDGest** : redirige vers bdgest.com dans un nouvel onglet (pas d'API publique)
+  - **Amazon** : redirige vers amazon.fr/livres dans un nouvel onglet (pas d'API publique)
+- Un message explicatif s'affiche sous la barre pour les sources externes
+
+---
+
 ## [1.5.3] — 2026-04-04
 
 ### Modifié

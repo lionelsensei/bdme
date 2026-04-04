@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 
-const VERSION = 'v1.5.3'
+const VERSION = 'v1.6.0'
 const BASE    = import.meta.env.VITE_API_URL || ''
 
 function renderChangelog(text) {

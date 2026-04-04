@@ -1,8 +1,9 @@
-const express  = require('express');
-const router   = express.Router();
-const books    = require('../services/googlebooks');
-const { decrypt } = require('../services/crypto');
-const supabase = require('../services/supabase');
+const express       = require('express');
+const router        = express.Router();
+const books         = require('../services/googlebooks');
+const openLibrary   = require('../services/openlibrary');
+const { decrypt }   = require('../services/crypto');
+const supabase      = require('../services/supabase');
 
 async function getApiKey() {
   const { data } = await supabase
@@ -20,10 +21,16 @@ async function getApiKey() {
 router.get('/', async (req, res) => {
   const query      = (req.query.q || '').trim();
   const startIndex = parseInt(req.query.startIndex, 10) || 0;
+  const source     = req.query.source || 'googlebooks';
   if (!query || query.length < 2) return res.status(400).json({ error: 'Minimum 2 caractères' });
   try {
-    const apiKey              = await getApiKey();
-    const { results, totalItems } = await books.search(query, apiKey, startIndex);
+    let results, totalItems;
+    if (source === 'openlibrary') {
+      ({ results, totalItems } = await openLibrary.search(query, startIndex));
+    } else {
+      const apiKey = await getApiKey();
+      ({ results, totalItems } = await books.search(query, apiKey, startIndex));
+    }
 
     const volumeIds = results.map(r => r.bdgest_id).filter(Boolean);
     let inCollection = new Set();
