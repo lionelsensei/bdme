@@ -110,6 +110,10 @@ Mapping des champs retournés :
 
 Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`) pour scanner un EAN ou saisir manuellement un album.
 
+### CollectionPage — regroupement par série
+
+Bouton "⊟ Séries" dans les actions (actif par défaut). Quand activé, les albums sont regroupés alphabétiquement par `series` (tri `localeCompare` français). Les albums sans série apparaissent en dernier sous "Albums sans série". Chaque groupe affiche un `SeriesHeader` avec le nom de la série et une pastille dorée indiquant le nombre d'albums. Le regroupement s'applique aux deux vues (grille et liste) et respecte les filtres de statut et la recherche locale.
+
 ### Ajout à la collection / wishlist (`SearchPage.jsx`)
 
 Avant d'enregistrer, `fetchDetails()` appelle `GET /api/search/album/:bdgest_id` pour enrichir les données (Google Books retourne déjà tout dans la recherche, mais l'appel garantit la complétude). La réponse est mise en cache 1 h côté serveur.

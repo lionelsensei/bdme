@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-04-04
+
+### Ajouté
+
+- **Regroupement par série** (`CollectionPage`) : bouton "⊟ Séries" actif par défaut — les albums sont regroupés alphabétiquement par série avec un en-tête et une pastille dorée indiquant le nombre d'albums ; les albums sans série apparaissent en dernier sous "Albums sans série" ; compatible grille et liste, filtres et recherche locale
+
+---
+
 ## [1.2.1] — 2026-04-04
 
 ### Corrigé
