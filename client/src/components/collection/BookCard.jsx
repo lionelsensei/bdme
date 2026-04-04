@@ -49,14 +49,20 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
 
   useEffect(() => {
     if (!book.bdgest_id || (book.author && book.illustrator)) return
-    api.get(`/search/album/${book.bdgest_id}`)
+    const url = book.bdgest_url ? `?url=${encodeURIComponent(book.bdgest_url)}` : ''
+    api.get(`/search/album/${book.bdgest_id}${url}`)
       .then(async details => {
+        const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean', 'cover_url']
+        // Mise à jour immédiate de l'affichage avec les données enrichies
+        const enriched = {}
+        for (const f of fields) { if (details[f]) enriched[f] = details[f] }
+        if (Object.keys(enriched).length === 0) return
+        setData(d => ({ ...d, ...enriched }))
+        // Persistance en base uniquement des champs manquants
         const patch = {}
-        const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean']
         for (const f of fields) { if (details[f] && !book[f]) patch[f] = details[f] }
         if (Object.keys(patch).length === 0) return
         const updated = await api.patch(`/books/${book.id}`, patch)
-        setData(updated)
         onUpdate(updated)
       })
       .catch(() => {})

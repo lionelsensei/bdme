@@ -24,7 +24,7 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
-  const allowed = ['read_status','title','series','tome','author','illustrator','publisher','year','genre','synopsis'];
+  const allowed = ['read_status','title','series','tome','author','illustrator','publisher','year','genre','ean','cover_url','synopsis'];
   const updates = {};
   for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
   const { data, error } = await supabase.from('bdme_books').update(updates).eq('id', req.params.id).eq('user_id', req.user.id).select().single();

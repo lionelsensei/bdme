@@ -76,7 +76,7 @@ Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id
 
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
-À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides (albums ajoutés avant le correctif 1.1.1), le modal appelle silencieusement `/api/search/album/:bdgest_id`, patche les champs manquants en base (`author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`) via `PATCH /api/books/:id`, et met à jour l'affichage. L'état local `data` (distinct de `book`) permet la mise à jour réactive sans fermer le modal.
+À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides, le modal appelle silencieusement `/api/search/album/:bdgest_id` (avec `?url=` si `bdgest_url` est disponible). Les détails enrichis sont appliqués immédiatement à l'état local `data` pour l'affichage, puis les champs manquants en base sont persistés via `PATCH /api/books/:id`. Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
 
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
 - **Auteurs** : scénariste et dessinateur affichés séparément avec mention `(scénario)` / `(dessin)`. Si identiques, affiché une seule fois. Label "Auteurs" au pluriel uniquement si les deux diffèrent.
@@ -115,6 +115,10 @@ ENCRYPTION_KEY=          # 32 caractères, AES-256
 CLIENT_ORIGIN=           # URL du frontend (CORS)
 PORT=3001
 ```
+
+## Routes API — champs patchables
+
+`PATCH /api/books/:id` accepte : `read_status`, `title`, `series`, `tome`, `author`, `illustrator`, `publisher`, `year`, `genre`, `ean`, `cover_url`, `synopsis`.
 
 ## Conventions
 

@@ -2,9 +2,15 @@ import { supabase } from './supabase'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
+let _token = null
+supabase.auth.getSession().then(({ data }) => { _token = data.session?.access_token ?? null })
+supabase.auth.onAuthStateChange((_e, session) => { _token = session?.access_token ?? null })
+
 async function getToken() {
+  if (_token) return _token
   const { data } = await supabase.auth.getSession()
-  return data.session?.access_token
+  _token = data.session?.access_token ?? null
+  return _token
 }
 
 async function req(method, path, body) {

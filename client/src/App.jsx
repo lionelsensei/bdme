@@ -37,7 +37,7 @@ function AppRoutes() {
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        {user && <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.7 }}>v1.1.3</div>}
+        {user && <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.7 }}>v1.1.4</div>}
       </main>
     </div>
   )

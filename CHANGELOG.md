@@ -5,6 +5,17 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.4] — 2026-04-04
+
+### Corrigé
+
+- **Couverture disparue** : `cover_url` ajouté aux champs autorisés par `PATCH /api/books/:id` et aux champs d'enrichissement du modal — la couverture est désormais récupérée depuis Bedetheque et persistée en base si absente
+- **`ean`** : ajouté aux champs patchables côté serveur (manquait dans la liste)
+- **Affichage immédiat** : l'enrichissement met à jour l'état local `data` dès la réponse de Bedetheque, sans attendre le round-trip PATCH — le modal affiche auteurs et couverture instantanément
+- **Token 401** : `api.js` maintient désormais le token Supabase en cache via `onAuthStateChange`, évitant les race conditions lors du refresh de session
+
+---
+
 ## [1.1.3] — 2026-04-04
 
 ### Corrigé
