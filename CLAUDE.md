@@ -76,7 +76,13 @@ Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id
 
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
-À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides, le modal appelle silencieusement `/api/search/album/:bdgest_id` (avec `?url=` si `bdgest_url` est disponible). Les détails enrichis sont appliqués immédiatement à l'état local `data` pour l'affichage, puis les champs manquants en base sont persistés via `PATCH /api/books/:id`. Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
+À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides, le modal tente d'enrichir en deux passes :
+1. Si `bdgest_url` est en base → `GET /api/search/album/:id?url=...` directement
+2. Sinon → `GET /api/search?q=<série|titre>` pour trouver l'URL correcte dans les résultats, puis fetch de la fiche
+
+Les détails enrichis sont appliqués immédiatement à l'état local `data`, puis les champs manquants sont persistés via `PATCH /api/books/:id`. Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
+
+`getAlbumDetails` retourne `null` (au lieu de lever une exception) si la page est vide ou inaccessible. La route `/api/search/album/:id` répond 404 dans ce cas — le modal l'ignore silencieusement, sans 502 dans la console.
 
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
 - **Auteurs** : scénariste et dessinateur affichés séparément avec mention `(scénario)` / `(dessin)`. Si identiques, affiché une seule fois. Label "Auteurs" au pluriel uniquement si les deux diffèrent.

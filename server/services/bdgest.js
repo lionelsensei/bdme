@@ -266,29 +266,37 @@ async function getAlbumDetails(bdgestId, credentials, albumUrl) {
     const { data } = await client.get(url);
     const $ = cheerio.load(data);
 
+    const author      = $('.scenariste a').first().text().trim();
+    const illustrator = $('.dessinateur a').first().text().trim();
+    const title       = $('h1, .titre-album').first().text().trim();
+
+    // Si la page ne contient aucune donnée utile (URL invalide / page 404 HTML)
+    if (!author && !illustrator && !title) {
+      console.warn('[BDGest] Fiche vide pour', url, '— URL invalide ou accès refusé');
+      return null;
+    }
+
+    const coverSrc = $('.couverture img, .album-cover img').first().attr('src');
     const details = {
       bdgest_id:   bdgestId,
-      title:       $('h1, .titre-album').first().text().trim(),
-      series:      $('.serie a, .titre-serie a').first().text().trim(),
+      title,
+      series:      $('.serie a, .titre-serie a').first().text().trim() || null,
       tome:        parseInt($('.num-tome, .tome').first().text().trim()) || null,
-      author:      $('.scenariste a').first().text().trim(),
-      illustrator: $('.dessinateur a').first().text().trim(),
-      publisher:   $('.editeur a, .editeur').first().text().trim(),
+      author:      author || null,
+      illustrator: illustrator || null,
+      publisher:   $('.editeur a, .editeur').first().text().trim() || null,
       year:        parseInt($('.parution, .annee').first().text().trim().match(/\d{4}/)?.[0]) || null,
-      genre:       $('.style a, .genre a').first().text().trim(),
-      ean:         $('.ean, .isbn').first().text().trim().replace(/\D/g, ''),
-      cover_url:   (() => {
-        const src = $('.couverture img, .album-cover img').first().attr('src');
-        return src ? (src.startsWith('http') ? src : BDT_BASE + src) : null;
-      })(),
-      synopsis: $('.synopsis, .resume').first().text().trim(),
+      genre:       $('.style a, .genre a').first().text().trim() || null,
+      ean:         $('.ean, .isbn').first().text().trim().replace(/\D/g, '') || null,
+      cover_url:   coverSrc ? (coverSrc.startsWith('http') ? coverSrc : BDT_BASE + coverSrc) : null,
+      synopsis:    $('.synopsis, .resume').first().text().trim() || null,
     };
 
     cache.set(cacheKey, details);
     return details;
   } catch (err) {
-    console.error('[BDGest] Erreur fiche:', err.message);
-    throw new Error('Impossible de recuperer la fiche album.');
+    console.error('[BDGest] Erreur fiche:', url, err.message);
+    return null;
   }
 }
 

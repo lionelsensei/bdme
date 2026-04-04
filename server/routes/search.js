@@ -78,6 +78,7 @@ router.get('/album/:id', async (req, res) => {
   try {
     const credentials = await getBdgestCredentials();
     const details     = await bdgest.getAlbumDetails(req.params.id, credentials, req.query.url || null);
+    if (!details) return res.status(404).json({ error: 'Fiche introuvable' });
     res.json(details);
   } catch (err) {
     res.status(502).json({ error: err.message });

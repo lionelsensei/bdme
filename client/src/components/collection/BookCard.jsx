@@ -49,23 +49,43 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
 
   useEffect(() => {
     if (!book.bdgest_id || (book.author && book.illustrator)) return
-    const url = book.bdgest_url ? `?url=${encodeURIComponent(book.bdgest_url)}` : ''
-    api.get(`/search/album/${book.bdgest_id}${url}`)
-      .then(async details => {
-        const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean', 'cover_url']
-        // Mise à jour immédiate de l'affichage avec les données enrichies
-        const enriched = {}
-        for (const f of fields) { if (details[f]) enriched[f] = details[f] }
-        if (Object.keys(enriched).length === 0) return
-        setData(d => ({ ...d, ...enriched }))
-        // Persistance en base uniquement des champs manquants
-        const patch = {}
-        for (const f of fields) { if (details[f] && !book[f]) patch[f] = details[f] }
-        if (Object.keys(patch).length === 0) return
-        const updated = await api.patch(`/books/${book.id}`, patch)
-        onUpdate(updated)
-      })
-      .catch(() => {})
+
+    async function enrich() {
+      const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean', 'cover_url']
+
+      // Tentative 1 : URL directe si disponible
+      let details = null
+      if (book.bdgest_url) {
+        try { details = await api.get(`/search/album/${book.bdgest_id}?url=${encodeURIComponent(book.bdgest_url)}`) } catch {}
+      }
+
+      // Tentative 2 : recherche par titre pour retrouver l'URL correcte
+      if (!details && book.title) {
+        try {
+          const results = await api.get(`/search?q=${encodeURIComponent(book.series || book.title)}`)
+          const match = results.find(r => r.bdgest_id === book.bdgest_id)
+          if (match?.bdgest_url) {
+            details = await api.get(`/search/album/${book.bdgest_id}?url=${encodeURIComponent(match.bdgest_url)}`)
+          }
+        } catch {}
+      }
+
+      if (!details) return
+
+      const enriched = {}
+      for (const f of fields) { if (details[f]) enriched[f] = details[f] }
+      if (Object.keys(enriched).length === 0) return
+
+      setData(d => ({ ...d, ...enriched }))
+
+      const patch = {}
+      for (const f of fields) { if (details[f] && !book[f]) patch[f] = details[f] }
+      if (Object.keys(patch).length === 0) return
+      const updated = await api.patch(`/books/${book.id}`, patch)
+      onUpdate(updated)
+    }
+
+    enrich().catch(() => {})
   }, [book.bdgest_id])
 
   async function saveStatus(val) {

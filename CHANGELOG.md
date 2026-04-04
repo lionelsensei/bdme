@@ -5,6 +5,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.5] — 2026-04-04
+
+### Corrigé
+
+- **502 sur fiche album** : `getAlbumDetails` retourne désormais `null` au lieu de lever une exception quand la page est vide ou inaccessible (URL fallback `/album-{id}.html` invalide pour les anciens albums) — la route répond 404, le modal ignore silencieusement
+- **Enrichissement anciens albums** : deux tentatives successives — d'abord via `bdgest_url` si disponible, sinon via une recherche BDGest par titre/série pour retrouver l'URL correcte avant de fetcher la fiche
+- **Champs vides normalisés** : `getAlbumDetails` retourne `null` (et non chaîne vide) pour les champs non trouvés par les sélecteurs CSS
+
+---
+
 ## [1.1.4] — 2026-04-04
 
 ### Corrigé
