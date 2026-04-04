@@ -41,6 +41,7 @@ export default function LoginPage() {
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.8rem', color: 'var(--text3)' }}>
           L'accès est sur invitation uniquement.<br />Contactez un administrateur pour obtenir un compte.
         </p>
+        <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.5 }}>v1.0</p>
       </div>
     </div>
   )
