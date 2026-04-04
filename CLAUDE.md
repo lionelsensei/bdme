@@ -12,32 +12,34 @@ server/         Node.js + Express (API REST, déployé sur VPS OVH)
 schema.sql      Tables Supabase (PostgreSQL self-hosted)
 ```
 
-Le backend tourne sur un **VPS OVH** et sert d'intermédiaire entre le frontend et Supabase / BDGest.
+Le backend tourne sur un **VPS OVH** et sert d'intermédiaire entre le frontend et Supabase / Google Books API.
 
 ## Stack technique
 
-| Couche     | Technologie                                            |
-|------------|--------------------------------------------------------|
-| Frontend   | React 18, React Router 6, Vite 5                       |
-| Backend    | Node.js, Express 4, Helmet, express-rate-limit         |
-| Auth       | Supabase Auth (JWT via cookie ou header)               |
-| Base       | Supabase PostgreSQL self-hosted (tables préfixées `bdme_`) |
-| Scraping   | axios + cheerio + tough-cookie (BDGest / Bedetheque)   |
-| Cache      | node-cache (TTL 1 h pour les résultats de recherche)   |
-| Crypto     | AES-256 pour les identifiants BDGest (clés API admin)  |
+| Couche        | Technologie                                                  |
+|---------------|--------------------------------------------------------------|
+| Frontend      | React 18, React Router 6, Vite 5                             |
+| Backend       | Node.js, Express 4, Helmet, express-rate-limit               |
+| Auth          | Supabase Auth (JWT via header Authorization)                 |
+| Base          | Supabase PostgreSQL self-hosted (tables préfixées `bdme_`)   |
+| Source externe| Google Books API (REST, pas de scraping)                     |
+| Cache         | node-cache (TTL 1 h pour les résultats de recherche)         |
+| Crypto        | AES-256 pour la clé API Google Books (stockée admin)         |
 
 ## Base de données — tables Supabase
 
 Toutes les tables sont préfixées `bdme_`. RLS activée sur toutes.
 
-| Table            | Description                                             |
-|------------------|---------------------------------------------------------|
-| `bdme_users`     | Profil utilisateur + rôle (`user` / `admin`)            |
-| `bdme_books`     | Collection BD par utilisateur + statut de lecture       |
-| `bdme_wishlist`  | Liste de souhaits par utilisateur                       |
-| `bdme_api_keys`  | Identifiants BDGest chiffrés (accès admin uniquement)   |
+| Table            | Description                                               |
+|------------------|-----------------------------------------------------------|
+| `bdme_users`     | Profil utilisateur + rôle (`user` / `admin`)              |
+| `bdme_books`     | Collection BD par utilisateur + statut de lecture         |
+| `bdme_wishlist`  | Liste de souhaits par utilisateur                         |
+| `bdme_api_keys`  | Clé API Google Books chiffrée (accès admin uniquement)    |
 
 `bdme_books.read_status` : `'unread'` | `'reading'` | `'read'`
+
+`bdme_books.bdgest_id` : contient désormais le **Google Books volumeId** (champ réutilisé, pas de migration nécessaire).
 
 Un trigger `handle_new_user` crée automatiquement la ligne `bdme_users` à chaque nouvel utilisateur Supabase Auth.
 
@@ -45,16 +47,47 @@ Un trigger `handle_new_user` crée automatiquement la ligne `bdme_users` à chaq
 
 Toutes les routes sont protégées par `authMiddleware` (vérification JWT Supabase).
 
-| Route                  | Description                                      |
-|------------------------|--------------------------------------------------|
-| `GET  /health`         | Health check                                     |
-| `GET/POST/PUT/DELETE /api/books`    | CRUD collection                   |
-| `GET/POST/DELETE /api/wishlist`     | CRUD wishlist                     |
-| `GET /api/search`      | Recherche BDGest (proxy + cache)                 |
-| `GET /api/users`       | Liste utilisateurs (admin)                       |
-| `GET/POST/DELETE /api/api-keys`     | Gestion clés BDGest (admin)       |
+| Route                               | Description                          |
+|-------------------------------------|--------------------------------------|
+| `GET  /health`                      | Health check                         |
+| `GET/POST/PATCH/DELETE /api/books`  | CRUD collection                      |
+| `GET/POST/DELETE /api/wishlist`     | CRUD wishlist                        |
+| `GET /api/search?q=`               | Recherche Google Books (proxy+cache) |
+| `GET /api/search/isbn/:ean`        | Recherche par EAN/ISBN               |
+| `GET /api/search/album/:id`        | Fiche détaillée par volumeId         |
+| `GET /api/users`                   | Liste utilisateurs (admin)           |
+| `GET/POST/PUT/DELETE /api/api-keys`| Gestion clé Google Books (admin)     |
 
 Rate limiting global : 200 req/15 min. Route `/api/search` : 30 req/min.
+
+### Clé API Google Books
+
+Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) → variable d'env `GOOGLE_BOOKS_API_KEY`. Sans clé, l'API Google Books fonctionne mais avec un quota limité.
+
+## Source externe — Google Books API
+
+Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :
+
+- **Recherche** : `GET /volumes?q={query}&langRestrict=fr&maxResults=20`
+- **ISBN** : `GET /volumes?q=isbn:{ean}`
+- **Fiche** : `GET /volumes/{volumeId}`
+
+Mapping des champs retournés :
+
+| Champ BDme    | Source Google Books                              |
+|---------------|--------------------------------------------------|
+| `bdgest_id`   | `item.id` (volumeId)                             |
+| `title`       | `volumeInfo.title`                               |
+| `series`      | `volumeInfo.subtitle`                            |
+| `tome`        | parsé depuis le titre (`T.1`, `Tome 2`…)         |
+| `author`      | `volumeInfo.authors[0]`                          |
+| `illustrator` | `volumeInfo.authors[1]` (si présent)             |
+| `publisher`   | `volumeInfo.publisher`                           |
+| `year`        | 4 premiers chiffres de `publishedDate`           |
+| `genre`       | `volumeInfo.categories[0]`                       |
+| `ean`         | `industryIdentifiers` type `ISBN_13` ou `ISBN_10`|
+| `cover_url`   | `imageLinks.thumbnail` (zoom=0, HTTPS)           |
+| `synopsis`    | `volumeInfo.description`                         |
 
 ## Frontend — pages
 
@@ -70,23 +103,17 @@ Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`)
 
 ### Ajout à la collection / wishlist (`SearchPage.jsx`)
 
-Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id?url=...` pour récupérer la fiche complète (auteur, dessinateur, éditeur, genre, synopsis, EAN). Le résultat de la liste BDGest ne contient que titre, série, tome, année et couverture — les auteurs ne sont disponibles que sur la fiche détaillée. La réponse est mise en cache serveur 1 h (`node-cache`).
-
-`parseResults` retourne `bdgest_url` (ex. `/BD-Largo-Winch-Tome-1-L-heritier-212.html`) extrait du href de chaque résultat. Cette URL est passée en query param `?url=` à `getAlbumDetails` pour éviter l'URL construite `/album-{id}.html` qui ne fonctionne pas sur Bedetheque. Pour les albums déjà en base sans cette URL, le fallback `/album-{id}.html` est tenté silencieusement.
+Avant d'enregistrer, `fetchDetails()` appelle `GET /api/search/album/:bdgest_id` pour enrichir les données (Google Books retourne déjà tout dans la recherche, mais l'appel garantit la complétude). La réponse est mise en cache 1 h côté serveur.
 
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
-À l'ouverture, si `bdgest_id` est présent mais que `author`/`illustrator` sont vides, le modal tente d'enrichir en deux passes :
-1. Si `bdgest_url` est en base → `GET /api/search/album/:id?url=...` directement
-2. Sinon → `GET /api/search?q=<série|titre>` pour trouver l'URL correcte dans les résultats, puis fetch de la fiche
+À l'ouverture, si `bdgest_id` est présent et que `author` ou `cover_url` sont vides, le modal appelle `GET /api/search/album/:bdgest_id`, applique immédiatement les données enrichies à l'état local `data`, puis persiste les champs manquants via `PATCH /api/books/:id`.
 
-Les détails enrichis sont appliqués immédiatement à l'état local `data`, puis les champs manquants sont persistés via `PATCH /api/books/:id`. Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
-
-`getAlbumDetails` retourne `null` (au lieu de lever une exception) si la page est vide ou inaccessible. La route `/api/search/album/:id` répond 404 dans ce cas — le modal l'ignore silencieusement, sans 502 dans la console.
+Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
 
 - **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
-- **Auteurs** : scénariste et dessinateur affichés séparément avec mention `(scénario)` / `(dessin)`. Si identiques, affiché une seule fois. Label "Auteurs" au pluriel uniquement si les deux diffèrent.
-- **Statut de lecture** : 3 boutons côte à côte (Non lu / En cours / Lu) remplaçant la liste déroulante. Le bouton actif est coloré selon le statut (gris / doré / vert). La sauvegarde est immédiate au clic.
+- **Auteurs** : scénariste et dessinateur avec mention `(scénario)` / `(dessin)`. Fusionnés si identiques.
+- **Statut de lecture** : 3 boutons (Non lu / En cours / Lu), colorés selon le statut, sauvegarde immédiate.
 
 ## Design system
 
@@ -97,18 +124,7 @@ Thème sombre. Variables CSS dans `client/src/styles/global.css`.
 - Polices : `DM Serif Display` (titres), `DM Sans` (corps)
 - Indicateurs de statut : point vert (lu), doré (en cours), gris (non lu)
 - Badges : vert `badge-collection`, doré `badge-wishlist`
-- Version affichée discrètement (opacité 0.7) en bas de la page de login et en bas de chaque page authentifiée, au format `vX.Y.Z`
-
-## Source externe — BDGest / Bedetheque
-
-Le service `server/services/bdgest.js` scrape `bedetheque.com` :
-
-1. Authentification via le forum BDGest + Bedetheque (session cookie, TTL 1 h)
-2. Recherche par titre/série (`RechSerie`)
-3. Recherche par EAN/ISBN
-4. Fiche album complète (auteur, illustrateur, éditeur, synopsis…)
-
-Les identifiants BDGest sont stockés chiffrés dans `bdme_api_keys` et gérés par l'admin. Sans identifiants, la recherche fonctionne en mode anonyme (résultats limités).
+- Version affichée discrètement (opacité 0.7) en bas de la page de login et de chaque page authentifiée, au format `vX.Y.Z`
 
 ## Variables d'environnement (serveur)
 
@@ -117,9 +133,10 @@ Voir `server/.env.example` :
 ```
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
-ENCRYPTION_KEY=          # 32 caractères, AES-256
-CLIENT_ORIGIN=           # URL du frontend (CORS)
+ENCRYPTION_KEY=           # 32 caractères, AES-256
+CLIENT_ORIGIN=            # URL du frontend (CORS)
 PORT=3001
+GOOGLE_BOOKS_API_KEY=     # Fallback si pas de clé en base
 ```
 
 ## Routes API — champs patchables
@@ -133,3 +150,4 @@ PORT=3001
 - Les textes de l'interface sont en **français**.
 - Pas de framework CSS externe — tout est du CSS custom dans `global.css`.
 - Le frontend communique exclusivement avec le backend Express (pas d'appels directs à Supabase depuis le client, sauf pour l'auth).
+- `bdme_api_keys.encrypted_login` est `null` pour Google Books (pas de login, seulement une clé API).

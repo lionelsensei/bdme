@@ -48,28 +48,12 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
   const [data, setData] = useState(book)
 
   useEffect(() => {
-    if (!book.bdgest_id || (book.author && book.illustrator)) return
+    if (!book.bdgest_id || (book.author && book.cover_url)) return
 
     async function enrich() {
       const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean', 'cover_url']
-
-      // Tentative 1 : URL directe si disponible
       let details = null
-      if (book.bdgest_url) {
-        try { details = await api.get(`/search/album/${book.bdgest_id}?url=${encodeURIComponent(book.bdgest_url)}`) } catch {}
-      }
-
-      // Tentative 2 : recherche par titre pour retrouver l'URL correcte
-      if (!details && book.title) {
-        try {
-          const results = await api.get(`/search?q=${encodeURIComponent(book.series || book.title)}`)
-          const match = results.find(r => r.bdgest_id === book.bdgest_id)
-          if (match?.bdgest_url) {
-            details = await api.get(`/search/album/${book.bdgest_id}?url=${encodeURIComponent(match.bdgest_url)}`)
-          }
-        } catch {}
-      }
-
+      try { details = await api.get(`/search/album/${book.bdgest_id}`) } catch {}
       if (!details) return
 
       const enriched = {}

@@ -5,6 +5,29 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.2.0] — 2026-04-04
+
+### Changement majeur
+
+- **Migration source de données** : abandon du scraping BDGest/Bedetheque (fragile, session cookie, sélecteurs CSS cassables) au profit de l'**API officielle Google Books** — REST propre, clé API simple, pas d'authentification par session, couvertures haute qualité
+
+### Ajouté
+
+- `server/services/googlebooks.js` : nouveau service Google Books (recherche texte, ISBN, fiche par volumeId), cache 1 h, mapping complet des champs
+- Variable d'environnement `GOOGLE_BOOKS_API_KEY` comme fallback si aucune clé n'est configurée en base
+- Admin → "Sources externes" : modal simplifié pour saisir uniquement la clé API Google Books (plus de login/password BDGest)
+- Indication dans l'admin que la recherche fonctionne sans clé (quota limité)
+
+### Modifié
+
+- `server/routes/search.js` : utilise `googlebooks.js`, plus de BDGest ; `getApiKey()` consulte `bdme_api_keys` (service=`googlebooks`) puis `GOOGLE_BOOKS_API_KEY`
+- `server/routes/apiKeys.js` : suppression de la dépendance `bdgest.invalidateSession`, `login` retiré (inutile pour Google Books)
+- `client/src/pages/SearchPage.jsx` : `fetchDetails()` simplifié, plus de query param `?url=`
+- `client/src/components/collection/BookCard.jsx` : enrichissement simplifié, appel direct par volumeId
+- `bdme_books.bdgest_id` : réutilisé pour stocker le Google Books `volumeId` (pas de migration de schéma)
+
+---
+
 ## [1.1.5] — 2026-04-04
 
 ### Corrigé
