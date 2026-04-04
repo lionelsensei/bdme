@@ -1,0 +1,109 @@
+import { useState } from 'react'
+import { api } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
+
+const STATUS_LABELS = { unread: 'Non lu', reading: 'En cours', read: 'Lu' }
+const STATUS_CLASS  = { unread: 'status-unread', reading: 'status-reading', read: 'status-read' }
+
+export function BookCardGrid({ book, onClick }) {
+  return (
+    <div className="book-card" onClick={() => onClick(book)}>
+      {book.cover_url
+        ? <img src={book.cover_url} alt={book.title} loading="lazy" />
+        : <div className="book-card-placeholder">{book.title}</div>}
+      <div className="book-card-overlay">
+        <div className="book-card-title">{book.title}</div>
+      </div>
+      <div className={`book-card-status ${STATUS_CLASS[book.read_status]}`} />
+    </div>
+  )
+}
+
+export function BookCardRow({ book, onClick }) {
+  return (
+    <div className="book-row" onClick={() => onClick(book)}>
+      {book.cover_url
+        ? <img className="book-row-cover" src={book.cover_url} alt={book.title} loading="lazy" />
+        : <div className="book-row-cover" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📖</div>}
+      <div className="book-row-info">
+        <div className="book-row-title">{book.title}</div>
+        <div className="book-row-meta">
+          {[book.series && `${book.series}${book.tome ? ` T${book.tome}` : ''}`, book.author, book.year].filter(Boolean).join(' · ')}
+        </div>
+      </div>
+      <div className={`book-row-status ${STATUS_CLASS[book.read_status]}`} />
+      <span style={{ fontSize: '0.75rem', color: 'var(--text3)', flexShrink: 0 }}>{STATUS_LABELS[book.read_status]}</span>
+    </div>
+  )
+}
+
+export function BookModal({ book, onClose, onUpdate, onDelete }) {
+  const toast = useToast()
+  const [status, setStatus] = useState(book.read_status)
+  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function saveStatus(val) {
+    setStatus(val); setSaving(true)
+    try {
+      onUpdate(await api.patch(`/books/${book.id}`, { read_status: val }))
+      toast('Statut mis à jour')
+    } catch (e) { toast(e.message, 'error') }
+    finally { setSaving(false) }
+  }
+
+  async function handleDelete() {
+    try {
+      await api.delete(`/books/${book.id}`)
+      onDelete(book.id); onClose()
+      toast('Album supprimé de la collection')
+    } catch (e) { toast(e.message, 'error') }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <div>
+            <h2 className="modal-title">{book.title}</h2>
+            {book.series && <p style={{ fontSize: '0.85rem', color: 'var(--text3)', marginTop: '4px' }}>{book.series}{book.tome ? ` — Tome ${book.tome}` : ''}</p>}
+          </div>
+          <button className="btn btn-icon" onClick={onClose} style={{ fontSize: '1.2rem', color: 'var(--text2)' }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+          {book.cover_url && <img src={book.cover_url} alt={book.title} style={{ width: 90, height: 135, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[['Scénariste', book.author], ['Dessinateur', book.illustrator], ['Éditeur', book.publisher], ['Année', book.year], ['Genre', book.genre]].filter(([, v]) => v).map(([k, v]) => (
+              <div key={k}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text3)' }}>{k}</span>
+                <div style={{ fontSize: '0.875rem', color: 'var(--text2)' }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {book.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }}>{book.synopsis}</p>}
+
+        <div className="form-group" style={{ marginBottom: '20px' }}>
+          <label className="form-label">Statut de lecture</label>
+          <select className="status-select input" value={status} onChange={e => saveStatus(e.target.value)} disabled={saving}>
+            <option value="unread">Non lu</option>
+            <option value="reading">En cours</option>
+            <option value="read">Lu</option>
+          </select>
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+          {!confirmDelete
+            ? <button className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(true)}>Supprimer de ma collection</button>
+            : <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text2)' }}>Confirmer ?</span>
+                <button className="btn btn-danger btn-sm" onClick={handleDelete}>Oui, supprimer</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Annuler</button>
+              </div>}
+        </div>
+      </div>
+    </div>
+  )
+}
