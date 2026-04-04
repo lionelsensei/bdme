@@ -19,8 +19,32 @@ function parseYear(str) {
 }
 
 function parseTome(str) {
-  const m = (str || '').match(/\bT(?:ome)?\s*\.?\s*(\d+)\b/i);
+  const m = (str || '').match(/\b(?:T(?:ome)?\s*\.?\s*|n°\s*)(\d+)\b/i);
   return m ? parseInt(m[1]) : null;
+}
+
+// Tente de décomposer le titre Google Books en { series, title, tome }
+// Formats courants : "Série - Titre - n°N" / "Série - Titre T.N" / "Série - Titre"
+function parseGoogleTitle(rawTitle, subtitle) {
+  const t = (rawTitle || '').trim();
+
+  // Format 3 parties : "Série - Titre - n°N" ou "Série - Titre - Tome N"
+  const m3 = t.match(/^(.+?)\s*-\s*(.+?)\s*-\s*(?:n°|t(?:ome)?\s*\.?\s*)(\d+)\s*$/i);
+  if (m3) return { series: m3[1].trim(), title: m3[2].trim(), tome: parseInt(m3[3]) };
+
+  // Format 2 parties avec tome dans la 2e : "Série - Titre T.N" ou "Série (T.N) - Titre"
+  const m2t = t.match(/^(.+?)\s*-\s*(.+?)\s*(?:n°|t(?:ome)?\s*\.?\s*)(\d+)\s*$/i);
+  if (m2t) return { series: m2t[1].trim(), title: m2t[2].trim(), tome: parseInt(m2t[3]) };
+
+  // Format 2 parties sans tome : "Série - Titre"
+  const m2 = t.match(/^([^-]{3,}?)\s*-\s*(.{3,})$/);
+  if (m2) {
+    const tome = parseTome(m2[2]) || parseTome(subtitle);
+    return { series: m2[1].trim(), title: m2[2].trim(), tome };
+  }
+
+  // Titre seul — subtitle comme série éventuelle
+  return { series: subtitle?.trim() || null, title: t, tome: parseTome(t) || parseTome(subtitle) };
 }
 
 function mapVolume(item) {
@@ -29,12 +53,13 @@ function mapVolume(item) {
   const authors = info.authors || [];
   const isbn13  = info.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier || null;
   const isbn10  = info.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier || null;
-  const tome    = parseTome(info.title) || parseTome(info.subtitle) || null;
+
+  const { series, title, tome } = parseGoogleTitle(info.title, info.subtitle);
 
   return {
     bdgest_id:   item.id,
-    title:       info.title        || '',
-    series:      info.subtitle     || null,
+    title:       title             || info.title || '',
+    series:      series            || null,
     tome,
     author:      authors[0]        || null,
     illustrator: authors[1]        || null,

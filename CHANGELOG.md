@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.2.1] — 2026-04-04
+
+### Corrigé
+
+- **Titre Google Books** : `parseGoogleTitle()` décompose désormais le titre brut (`Astérix - Astérix le Gaulois - n°1`) en champs distincts `series`, `title` et `tome` — le modal affiche "Astérix le Gaulois" en titre et "Astérix — Tome 1" en sous-titre
+- **Synopsis HTML** : le synopsis est rendu via `dangerouslySetInnerHTML` pour interpréter les balises `<p>`, `<br>`, etc. renvoyées par Google Books
+
+---
+
 ## [1.2.0] — 2026-04-04
 
 ### Changement majeur

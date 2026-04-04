@@ -77,9 +77,9 @@ Mapping des champs retournés :
 | Champ BDme    | Source Google Books                              |
 |---------------|--------------------------------------------------|
 | `bdgest_id`   | `item.id` (volumeId)                             |
-| `title`       | `volumeInfo.title`                               |
-| `series`      | `volumeInfo.subtitle`                            |
-| `tome`        | parsé depuis le titre (`T.1`, `Tome 2`…)         |
+| `title`       | parsé depuis `volumeInfo.title` (voir ci-dessous)|
+| `series`      | parsé depuis `volumeInfo.title` (voir ci-dessous)|
+| `tome`        | parsé depuis `volumeInfo.title` ou `subtitle`    |
 | `author`      | `volumeInfo.authors[0]`                          |
 | `illustrator` | `volumeInfo.authors[1]` (si présent)             |
 | `publisher`   | `volumeInfo.publisher`                           |
@@ -87,7 +87,16 @@ Mapping des champs retournés :
 | `genre`       | `volumeInfo.categories[0]`                       |
 | `ean`         | `industryIdentifiers` type `ISBN_13` ou `ISBN_10`|
 | `cover_url`   | `imageLinks.thumbnail` (zoom=0, HTTPS)           |
-| `synopsis`    | `volumeInfo.description`                         |
+| `synopsis`    | `volumeInfo.description` (peut contenir du HTML, rendu via `dangerouslySetInnerHTML`) |
+
+`parseGoogleTitle(rawTitle, subtitle)` décompose le titre Google Books selon ces patterns (par ordre de priorité) :
+
+| Format titre Google Books                  | series            | title                  | tome |
+|--------------------------------------------|-------------------|------------------------|------|
+| `Série - Titre - n°N`                      | Série             | Titre                  | N    |
+| `Série - Titre T.N`                        | Série             | Titre                  | N    |
+| `Série - Titre` (sans tome)                | Série             | Titre                  | null |
+| `Titre seul`                               | subtitle ou null  | Titre                  | null |
 
 ## Frontend — pages
 

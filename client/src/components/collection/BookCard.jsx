@@ -125,7 +125,7 @@ export function BookModal({ book, onClose, onUpdate, onDelete }) {
           </div>
         </div>
 
-        {data.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }}>{data.synopsis}</p>}
+        {data.synopsis && <p style={{ fontSize: '0.85rem', color: 'var(--text2)', marginBottom: '20px', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: data.synopsis }} />}
 
         <div style={{ marginBottom: '20px' }}>
           <span className="form-label" style={{ display: 'block', marginBottom: '10px' }}>Statut de lecture</span>
