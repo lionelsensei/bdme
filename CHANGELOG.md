@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.3] — 2026-04-04
+
+### Modifié
+
+- **Tri dans les séries** : à défaut de numéro de tome, les albums sont triés par année de publication croissante (second critère de tri)
+
+---
+
 ## [1.5.2] — 2026-04-04
 
 ### Ajouté

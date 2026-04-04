@@ -102,7 +102,10 @@ export default function CollectionPage() {
     return [...list].sort((a, b) => {
       const ta = a.tome != null ? Number(a.tome) : Infinity
       const tb = b.tome != null ? Number(b.tome) : Infinity
-      return ta - tb
+      if (ta !== tb) return ta - tb
+      const ya = a.year ? Number(a.year) : Infinity
+      const yb = b.year ? Number(b.year) : Infinity
+      return ya - yb
     })
   }, [grouped, openSeries])
 
