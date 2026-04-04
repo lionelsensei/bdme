@@ -114,6 +114,14 @@ Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`)
 
 Bouton "⊟ Séries" dans les actions (actif par défaut). Quand activé, les albums sont regroupés alphabétiquement par `series` (tri `localeCompare` français). Les albums sans série apparaissent en dernier sous "Albums sans série". Chaque groupe affiche un `SeriesHeader` avec le nom de la série et une pastille dorée indiquant le nombre d'albums. Le regroupement s'applique aux deux vues (grille et liste) et respecte les filtres de statut et la recherche locale.
 
+**Vue dossiers (navigation deux niveaux) :**
+- Quand le groupement est actif et qu'aucun dossier n'est ouvert : les séries sont affichées comme des cartes dossier (`SeriesFolderCard` en grille, `SeriesFolderRow` en liste)
+- Grille : effet d'empilement (jusqu'à 3 couvertures décalées et pivotées), pastille dorée avec le nombre d'albums
+- Liste : première couverture + nom de la série + nombre d'albums + flèche `›`
+- Clic sur un dossier → affiche les albums de cette série avec un fil d'ariane `← Séries · Nom · N albums`
+- Retour au dossier : bouton `← Séries` ou changement de filtre/recherche/groupement
+- La barre de recherche et les filtres de statut sont masqués quand un dossier est ouvert
+
 ### Ajout à la collection / wishlist (`SearchPage.jsx`)
 
 Avant d'enregistrer, `fetchDetails()` appelle `GET /api/search/album/:bdgest_id` pour enrichir les données (Google Books retourne déjà tout dans la recherche, mais l'appel garantit la complétude). La réponse est mise en cache 1 h côté serveur.

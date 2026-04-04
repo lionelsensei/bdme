@@ -5,6 +5,18 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.0] — 2026-04-04
+
+### Ajouté
+
+- **Vue dossiers par série** (`CollectionPage`) : quand le groupement est actif, les séries sont présentées comme des dossiers cliquables plutôt que de simples en-têtes
+  - Grille : `SeriesFolderCard` avec effet d'empilement jusqu'à 3 couvertures décalées/pivotées et pastille dorée du nombre d'albums
+  - Liste : `SeriesFolderRow` avec première couverture, nom de la série, compte et flèche `›`
+  - Clic → drill-down dans la série avec fil d'ariane `← Séries · Nom · N albums`
+  - Retour automatique si filtre, recherche ou groupement change
+
+---
+
 ## [1.3.1] — 2026-04-04
 
 ### Ajouté

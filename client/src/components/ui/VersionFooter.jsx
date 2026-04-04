@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const VERSION = 'v1.3.1'
+const VERSION = 'v1.4.0'
 const BASE    = import.meta.env.VITE_API_URL || ''
 
 function renderChangelog(text) {
