@@ -83,10 +83,12 @@ async function search(query, apiKey, startIndex = 0) {
 
   try {
     const { data } = await axios.get(`${BASE}/volumes`, { params, timeout: 10000 });
-    const results  = (data.items || []).map(mapVolume).filter(Boolean);
-    console.log('[GoogleBooks] Recherche "' + query + '" (startIndex=' + startIndex + ') -> ' + results.length + ' résultats');
-    cache.set(cacheKey, results);
-    return results;
+    const results    = (data.items || []).map(mapVolume).filter(Boolean);
+    const totalItems = data.totalItems || 0;
+    console.log('[GoogleBooks] Recherche "' + query + '" (startIndex=' + startIndex + ') -> ' + results.length + '/' + totalItems + ' résultats');
+    const response = { results, totalItems };
+    cache.set(cacheKey, response);
+    return response;
   } catch (err) {
     console.error('[GoogleBooks] Erreur recherche:', err.message);
     throw new Error('Erreur lors de la recherche Google Books.');

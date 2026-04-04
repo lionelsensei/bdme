@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.1] — 2026-04-04
+
+### Corrigé
+
+- **Bouton "Voir plus" absent** : la détection de pages suivantes se basait sur `res.length === 40` — insuffisant car Google Books retourne parfois moins de résultats même quand il en a davantage ; le service retourne désormais `totalItems` et le frontend compare `startIndex + results.length < totalItems` pour afficher le bouton correctement
+- **Format de réponse** : `GET /api/search` retourne désormais `{ results, totalItems }` au lieu d'un tableau brut
+
+---
+
 ## [1.5.0] — 2026-04-04
 
 ### Ajouté

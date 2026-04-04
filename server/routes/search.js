@@ -22,8 +22,8 @@ router.get('/', async (req, res) => {
   const startIndex = parseInt(req.query.startIndex, 10) || 0;
   if (!query || query.length < 2) return res.status(400).json({ error: 'Minimum 2 caractères' });
   try {
-    const apiKey  = await getApiKey();
-    const results = await books.search(query, apiKey, startIndex);
+    const apiKey              = await getApiKey();
+    const { results, totalItems } = await books.search(query, apiKey, startIndex);
 
     const volumeIds = results.map(r => r.bdgest_id).filter(Boolean);
     let inCollection = new Set();
@@ -38,11 +38,14 @@ router.get('/', async (req, res) => {
       inWishlist   = new Set((wis || []).map(b => b.bdgest_id));
     }
 
-    res.json(results.map(r => ({
-      ...r,
-      in_collection: r.bdgest_id ? inCollection.has(r.bdgest_id) : false,
-      in_wishlist:   r.bdgest_id ? inWishlist.has(r.bdgest_id)   : false,
-    })));
+    res.json({
+      totalItems,
+      results: results.map(r => ({
+        ...r,
+        in_collection: r.bdgest_id ? inCollection.has(r.bdgest_id) : false,
+        in_wishlist:   r.bdgest_id ? inWishlist.has(r.bdgest_id)   : false,
+      })),
+    });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }

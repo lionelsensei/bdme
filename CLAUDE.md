@@ -53,7 +53,7 @@ Toutes les routes sont protégées par `authMiddleware` (vérification JWT Supab
 | `GET  /api/changelog`               | CHANGELOG.md en texte brut (public)  |
 | `GET/POST/PATCH/DELETE /api/books`  | CRUD collection                      |
 | `GET/POST/DELETE /api/wishlist`     | CRUD wishlist                        |
-| `GET /api/search?q=&startIndex=`   | Recherche Google Books (proxy+cache, pagination) |
+| `GET /api/search?q=&startIndex=`   | Recherche Google Books — retourne `{ results, totalItems }` (pagination) |
 | `GET /api/search/isbn/:ean`        | Recherche par EAN/ISBN               |
 | `GET /api/search/album/:id`        | Fiche détaillée par volumeId         |
 | `GET /api/users`                   | Liste utilisateurs (admin)           |

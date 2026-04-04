@@ -84,9 +84,9 @@ export default function SearchPage() {
     if (!q.trim() || q.trim().length < 2) { setResults([]); setSearched(false); setStartIndex(0); setHasMore(false); return }
     setLoading(true); setSearched(true); setStartIndex(0)
     try {
-      const res = await api.get(`/search?q=${encodeURIComponent(q.trim())}`)
+      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(q.trim())}`)
       setResults(res)
-      setHasMore(res.length === 40)
+      setHasMore(res.length > 0 && res.length < totalItems)
     }
     catch (e) { toast(e.message, 'error'); setResults([]) }
     finally { setLoading(false) }
@@ -96,10 +96,10 @@ export default function SearchPage() {
     const next = startIndex + 40
     setLoadingMore(true)
     try {
-      const res = await api.get(`/search?q=${encodeURIComponent(query.trim())}&startIndex=${next}`)
+      const { results: res, totalItems } = await api.get(`/search?q=${encodeURIComponent(query.trim())}&startIndex=${next}`)
       setResults(prev => [...prev, ...res])
       setStartIndex(next)
-      setHasMore(res.length === 40)
+      setHasMore(res.length > 0 && (next + res.length) < totalItems)
     }
     catch (e) { toast(e.message, 'error') }
     finally { setLoadingMore(false) }
@@ -143,7 +143,7 @@ export default function SearchPage() {
       {!loading && results.length > 0 && (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginBottom: '12px' }}>
-            {results.length} résultat{results.length !== 1 ? 's' : ''}
+            {results.length} résultat{results.length !== 1 ? 's' : ''} affiché{results.length !== 1 ? 's' : ''}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {results.map((r, i) => <SearchResultItem key={r.bdgest_id || i} result={r} />)}
