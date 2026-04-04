@@ -53,7 +53,7 @@ Toutes les routes sont protégées par `authMiddleware` (vérification JWT Supab
 | `GET  /api/changelog`               | CHANGELOG.md en texte brut (public)  |
 | `GET/POST/PATCH/DELETE /api/books`  | CRUD collection                      |
 | `GET/POST/DELETE /api/wishlist`     | CRUD wishlist                        |
-| `GET /api/search?q=`               | Recherche Google Books (proxy+cache) |
+| `GET /api/search?q=&startIndex=`   | Recherche Google Books (proxy+cache, pagination) |
 | `GET /api/search/isbn/:ean`        | Recherche par EAN/ISBN               |
 | `GET /api/search/album/:id`        | Fiche détaillée par volumeId         |
 | `GET /api/users`                   | Liste utilisateurs (admin)           |
@@ -69,7 +69,7 @@ Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) 
 
 Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :
 
-- **Recherche** : `GET /volumes?q={query}&maxResults=40` (sans filtre de sujet ni `langRestrict` — le catalogage Google Books est trop hétérogène pour filtrer par genre)
+- **Recherche** : `GET /volumes?q={query}&maxResults=40&startIndex={n}` (sans filtre de sujet ni `langRestrict`) — pagination via `startIndex`, 40 résultats par page
 - **ISBN** : `GET /volumes?q=isbn:{ean}`
 - **Fiche** : `GET /volumes/{volumeId}`
 

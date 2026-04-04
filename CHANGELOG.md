@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.0] — 2026-04-04
+
+### Ajouté
+
+- **Pagination des résultats de recherche** : bouton "Voir plus" affiché sous les résultats quand Google Books en a davantage — charge les 40 suivants (`startIndex`) et les accumule dans la liste ; une nouvelle recherche repart de zéro
+- **Nettoyage UI** : références à BDGest retirées du placeholder et des textes de la page de recherche
+
+---
+
 ## [1.4.6] — 2026-04-04
 
 ### Corrigé

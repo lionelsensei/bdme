@@ -18,11 +18,12 @@ async function getApiKey() {
 
 // GET /api/search?q=...
 router.get('/', async (req, res) => {
-  const query = (req.query.q || '').trim();
+  const query      = (req.query.q || '').trim();
+  const startIndex = parseInt(req.query.startIndex, 10) || 0;
   if (!query || query.length < 2) return res.status(400).json({ error: 'Minimum 2 caractères' });
   try {
     const apiKey  = await getApiKey();
-    const results = await books.search(query, apiKey);
+    const results = await books.search(query, apiKey, startIndex);
 
     const volumeIds = results.map(r => r.bdgest_id).filter(Boolean);
     let inCollection = new Set();

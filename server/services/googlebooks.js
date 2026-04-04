@@ -73,18 +73,18 @@ function mapVolume(item) {
 }
 
 // ── Recherche par texte ───────────────────────────────────────
-async function search(query, apiKey) {
-  const cacheKey = 'search:' + query;
+async function search(query, apiKey, startIndex = 0) {
+  const cacheKey = `search:${query}:${startIndex}`;
   const cached   = cache.get(cacheKey);
   if (cached) return cached;
 
-  const params = { q: query, maxResults: 40, printType: 'books' };
+  const params = { q: query, maxResults: 40, startIndex, printType: 'books' };
   if (apiKey) params.key = apiKey;
 
   try {
     const { data } = await axios.get(`${BASE}/volumes`, { params, timeout: 10000 });
     const results  = (data.items || []).map(mapVolume).filter(Boolean);
-    console.log('[GoogleBooks] Recherche "' + query + '" -> ' + results.length + ' résultats');
+    console.log('[GoogleBooks] Recherche "' + query + '" (startIndex=' + startIndex + ') -> ' + results.length + ' résultats');
     cache.set(cacheKey, results);
     return results;
   } catch (err) {

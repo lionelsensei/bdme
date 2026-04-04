@@ -70,20 +70,40 @@ function SearchResultItem({ result }) {
 
 export default function SearchPage() {
   const toast = useToast()
-  const [query,    setQuery]    = useState('')
-  const [results,  setResults]  = useState([])
-  const [loading,  setLoading]  = useState(false)
-  const [searched, setSearched] = useState(false)
-  const inputRef   = useRef(null)
+  const [query,      setQuery]      = useState('')
+  const [results,    setResults]    = useState([])
+  const [loading,    setLoading]    = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [searched,   setSearched]   = useState(false)
+  const [startIndex, setStartIndex] = useState(0)
+  const [hasMore,    setHasMore]    = useState(false)
+  const inputRef    = useRef(null)
   const debounceRef = useRef(null)
 
   const doSearch = useCallback(async (q) => {
-    if (!q.trim() || q.trim().length < 2) { setResults([]); setSearched(false); return }
-    setLoading(true); setSearched(true)
-    try { setResults(await api.get(`/search?q=${encodeURIComponent(q.trim())}`)) }
+    if (!q.trim() || q.trim().length < 2) { setResults([]); setSearched(false); setStartIndex(0); setHasMore(false); return }
+    setLoading(true); setSearched(true); setStartIndex(0)
+    try {
+      const res = await api.get(`/search?q=${encodeURIComponent(q.trim())}`)
+      setResults(res)
+      setHasMore(res.length === 40)
+    }
     catch (e) { toast(e.message, 'error'); setResults([]) }
     finally { setLoading(false) }
   }, [])
+
+  async function loadMore() {
+    const next = startIndex + 40
+    setLoadingMore(true)
+    try {
+      const res = await api.get(`/search?q=${encodeURIComponent(query.trim())}&startIndex=${next}`)
+      setResults(prev => [...prev, ...res])
+      setStartIndex(next)
+      setHasMore(res.length === 40)
+    }
+    catch (e) { toast(e.message, 'error') }
+    finally { setLoadingMore(false) }
+  }
 
   function handleChange(e) {
     const val = e.target.value; setQuery(val)
@@ -100,7 +120,7 @@ export default function SearchPage() {
       <form onSubmit={handleSubmit} style={{ marginBottom: '24px' }}>
         <div className="search-bar">
           <span className="search-bar-icon">⌕</span>
-          <input ref={inputRef} className="input" placeholder="Titre, série, auteur… (source : BDGest)" value={query} onChange={handleChange} autoFocus />
+          <input ref={inputRef} className="input" placeholder="Titre, série, auteur…" value={query} onChange={handleChange} autoFocus />
           {query && <button type="button" className="search-bar-clear" onClick={() => { setQuery(''); setResults([]); setSearched(false); inputRef.current?.focus() }}>✕</button>}
         </div>
       </form>
@@ -108,7 +128,7 @@ export default function SearchPage() {
       {loading && (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text3)' }}>
           <div className="spinner" />
-          <p style={{ marginTop: '12px', fontSize: '0.85rem' }}>Recherche sur BDGest…</p>
+          <p style={{ marginTop: '12px', fontSize: '0.85rem' }}>Recherche en cours…</p>
         </div>
       )}
 
@@ -123,11 +143,18 @@ export default function SearchPage() {
       {!loading && results.length > 0 && (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginBottom: '12px' }}>
-            {results.length} résultat{results.length !== 1 ? 's' : ''} depuis BDGest
+            {results.length} résultat{results.length !== 1 ? 's' : ''}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {results.map((r, i) => <SearchResultItem key={r.bdgest_id || i} result={r} />)}
           </div>
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <button className="btn btn-ghost" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} /> : 'Voir plus'}
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -135,7 +162,7 @@ export default function SearchPage() {
         <div className="empty-state" style={{ paddingTop: '40px' }}>
           <div className="empty-state-icon">📖</div>
           <h3>Trouvez vos bandes dessinées</h3>
-          <p>Tapez un titre, le nom d'une série ou d'un auteur.<br />Les résultats viennent de BDGest.com.</p>
+          <p>Tapez un titre, le nom d'une série ou d'un auteur.</p>
         </div>
       )}
     </>
