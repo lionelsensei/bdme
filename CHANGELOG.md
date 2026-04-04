@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.4.5] — 2026-04-04
+
+### Modifié
+
+- **Recherche limitée aux BD/comics** : `+subject:comics` ajouté à chaque requête Google Books — filtre les résultats aux bandes dessinées et comics uniquement ; `langRestrict: 'fr'` retiré pour inclure les comics en anglais, manga, etc.
+
+---
+
 ## [1.4.4] — 2026-04-04
 
 ### Modifié
