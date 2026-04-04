@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const fs   = require('fs');
+const path = require('path');
 
 const authMiddleware = require('./middleware/auth');
 const booksRouter    = require('./routes/books');
@@ -35,7 +37,13 @@ const searchLimiter = rateLimit({
   validate: { xForwardedForHeader: false },
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', app: 'BDme' }));
+app.get('/health',    (req, res) => res.json({ status: 'ok', app: 'BDme' }));
+app.get('/changelog', (req, res) => {
+  try {
+    const content = fs.readFileSync(path.join(__dirname, '../CHANGELOG.md'), 'utf8');
+    res.type('text/plain; charset=utf-8').send(content);
+  } catch { res.status(404).send('') }
+});
 
 app.use('/api/books',    authMiddleware, booksRouter);
 app.use('/api/wishlist', authMiddleware, wishlistRouter);

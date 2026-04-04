@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import Nav from './components/ui/Nav'
 import ScanButton from './components/ui/ScanButton'
+import VersionFooter from './components/ui/VersionFooter'
 import LoginPage from './pages/LoginPage'
 import CollectionPage from './pages/CollectionPage'
 import SearchPage from './pages/SearchPage'
@@ -37,7 +38,7 @@ function AppRoutes() {
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        {user && <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.7 }}>v1.3.0</div>}
+        {user && <VersionFooter />}
       </main>
     </div>
   )

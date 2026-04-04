@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.3.1] — 2026-04-04
+
+### Ajouté
+
+- **Lien changelog** : `VersionFooter.jsx` (composant partagé) remplace les textes de version dans `App.jsx` et `LoginPage.jsx` — affiche `vX.Y.Z · changelog` ; un clic ouvre un modal qui fetche et rend le `CHANGELOG.md`
+- **Endpoint public `GET /changelog`** : sert le `CHANGELOG.md` en texte brut depuis Express, sans authentification
+
+---
+
 ## [1.3.0] — 2026-04-04
 
 ### Ajouté

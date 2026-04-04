@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import VersionFooter from '../components/ui/VersionFooter'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -41,7 +42,7 @@ export default function LoginPage() {
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.8rem', color: 'var(--text3)' }}>
           L'accès est sur invitation uniquement.<br />Contactez un administrateur pour obtenir un compte.
         </p>
-        <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '0.7rem', color: 'var(--text3)', opacity: 0.7 }}>v1.3.0</p>
+        <VersionFooter />
       </div>
     </div>
   )

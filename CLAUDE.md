@@ -137,7 +137,7 @@ Thème sombre. Variables CSS dans `client/src/styles/global.css`.
 - Polices : `DM Serif Display` (titres), `DM Sans` (corps)
 - Indicateurs de statut : point vert (lu), doré (en cours), gris (non lu)
 - Badges : vert `badge-collection`, doré `badge-wishlist`
-- Version affichée discrètement (opacité 0.7) en bas de la page de login et de chaque page authentifiée, au format `vX.Y.Z`
+- Version affichée via `VersionFooter.jsx` (composant unique) en bas de la page de login et de chaque page authentifiée. Affiche `vX.Y.Z · changelog` — un clic sur "changelog" ouvre un modal qui fetche `GET /changelog` (endpoint public Express) et rend le CHANGELOG.md avec un rendu minimal (titres, puces, séparateurs). La version est à maintenir uniquement dans la constante `VERSION` de `VersionFooter.jsx`.
 
 ## Variables d'environnement (serveur)
 
