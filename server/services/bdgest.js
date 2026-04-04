@@ -140,6 +140,7 @@ function parseResults(data, limit) {
     if (title || series || href) {
       results.push({
         bdgest_id:   bdgestId,
+        bdgest_url:  href || null,
         title:       title  || (urlMatch ? urlMatch[2].replace(/-/g, ' ') : ''),
         series:      series || (urlMatch ? urlMatch[1].replace(/-/g, ' ') : null),
         tome,
@@ -245,7 +246,7 @@ async function searchByISBN(ean, credentials) {
 }
 
 // ── Fiche complète ────────────────────────────────────────────
-async function getAlbumDetails(bdgestId, credentials) {
+async function getAlbumDetails(bdgestId, credentials, albumUrl) {
   const cacheKey = 'album:' + bdgestId;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
@@ -257,8 +258,12 @@ async function getAlbumDetails(bdgestId, credentials) {
     ({ client } = createClient());
   }
 
+  const url = albumUrl
+    ? (albumUrl.startsWith('http') ? albumUrl : BDT_BASE + albumUrl)
+    : BDT_BASE + '/album-' + bdgestId + '.html';
+
   try {
-    const { data } = await client.get(BDT_BASE + '/album-' + bdgestId + '.html');
+    const { data } = await client.get(url);
     const $ = cheerio.load(data);
 
     const details = {

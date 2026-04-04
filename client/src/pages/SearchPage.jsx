@@ -11,7 +11,8 @@ function SearchResultItem({ result }) {
 
   async function fetchDetails() {
     if (!result.bdgest_id) return result
-    try { return { ...result, ...await api.get(`/search/album/${result.bdgest_id}`) } }
+    const qs = result.bdgest_url ? `?url=${encodeURIComponent(result.bdgest_url)}` : ''
+    try { return { ...result, ...await api.get(`/search/album/${result.bdgest_id}${qs}`) } }
     catch { return result }
   }
 

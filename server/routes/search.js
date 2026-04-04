@@ -73,11 +73,11 @@ router.get('/isbn/:ean', async (req, res) => {
   }
 });
 
-// GET /api/search/album/:id
+// GET /api/search/album/:id?url=...
 router.get('/album/:id', async (req, res) => {
   try {
     const credentials = await getBdgestCredentials();
-    const details     = await bdgest.getAlbumDetails(req.params.id, credentials);
+    const details     = await bdgest.getAlbumDetails(req.params.id, credentials, req.query.url || null);
     res.json(details);
   } catch (err) {
     res.status(502).json({ error: err.message });

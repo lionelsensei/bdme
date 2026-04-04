@@ -5,6 +5,17 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.3] — 2026-04-04
+
+### Corrigé
+
+- **Fiche album BDGest (502)** : `getAlbumDetails` construisait `/album-{id}.html`, URL inexistante sur Bedetheque — corrigé en propageant le vrai chemin `/BD-...-{id}.html` depuis `parseResults` jusqu'à la route `/api/search/album/:id` via le query param `?url=`
+- **`parseResults`** : retourne désormais `bdgest_url` (chemin complet extrait du href de chaque résultat de recherche)
+- **`SearchPage`** : `fetchDetails()` passe `bdgest_url` en query param pour que le serveur utilise l'URL correcte
+- **`getAlbumDetails`** : accepte un troisième paramètre `albumUrl` ; garde `/album-{id}.html` comme fallback pour les albums existants en base
+
+---
+
 ## [1.1.2] — 2026-04-04
 
 ### Corrigé

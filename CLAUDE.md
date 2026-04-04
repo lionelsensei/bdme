@@ -70,7 +70,9 @@ Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`)
 
 ### Ajout à la collection / wishlist (`SearchPage.jsx`)
 
-Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id` pour récupérer la fiche complète (auteur, dessinateur, éditeur, genre, synopsis, EAN). Le résultat de la liste BDGest ne contient que titre, série, tome, année et couverture — les auteurs ne sont disponibles que sur la fiche détaillée. La réponse est mise en cache serveur 1 h (`node-cache`).
+Avant d'enregistrer un album, `SearchPage` appelle `/api/search/album/:bdgest_id?url=...` pour récupérer la fiche complète (auteur, dessinateur, éditeur, genre, synopsis, EAN). Le résultat de la liste BDGest ne contient que titre, série, tome, année et couverture — les auteurs ne sont disponibles que sur la fiche détaillée. La réponse est mise en cache serveur 1 h (`node-cache`).
+
+`parseResults` retourne `bdgest_url` (ex. `/BD-Largo-Winch-Tome-1-L-heritier-212.html`) extrait du href de chaque résultat. Cette URL est passée en query param `?url=` à `getAlbumDetails` pour éviter l'URL construite `/album-{id}.html` qui ne fonctionne pas sur Bedetheque. Pour les albums déjà en base sans cette URL, le fallback `/album-{id}.html` est tenté silencieusement.
 
 ### Modal détail album (`BookModal` dans `BookCard.jsx`)
 
