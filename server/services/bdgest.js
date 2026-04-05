@@ -197,45 +197,78 @@ async function searchByISBN(ean, credentials) {
 
 // ── Fiche album complète ──────────────────────────────────────
 async function getAlbumDetails(albumUrl, credentials) {
+  if (!albumUrl || !albumUrl.startsWith('http')) {
+    console.warn('[BDGest] URL invalide:', albumUrl);
+    return null;
+  }
+
   const cacheKey = `bdg:album:${albumUrl}`;
   const cached   = cache.get(cacheKey);
   if (cached) return cached;
 
   const client = await getClient(credentials.login, credentials.password);
-  const url    = albumUrl.startsWith('http') ? albumUrl : BASE + albumUrl;
 
   try {
-    const { data } = await client.get(url);
+    const { data } = await client.get(albumUrl);
     const $ = cheerio.load(data);
 
-    const author      = $('.scenariste a').first().text().trim() || $('.auteur-scenariste a').first().text().trim();
-    const illustrator = $('.dessinateur a').first().text().trim() || $('.auteur-dessinateur a').first().text().trim();
-    const title       = $('h1.titre').first().text().trim() || $('h1').first().text().trim();
-    const series      = $('.serie a').first().text().trim() || $('[itemprop="isPartOf"]').text().trim();
-    const tomeText    = $('.numero-tome, .num-tome').first().text().trim();
-    const tome        = tomeText ? parseInt(tomeText.replace(/[^0-9]/g, ''), 10) || null : null;
-    const publisher   = $('.editeur a').first().text().trim() || null;
-    const parution    = $('.parution').first().text().trim();
-    const yearM       = parution.match(/(\d{4})/);
-    const year        = yearM ? yearM[1] : null;
-    const genre       = $('.style a').first().text().trim() || null;
-    const eanText     = $('.ean').first().text().trim();
-    const ean         = eanText.replace(/\D/g, '') || null;
-    const coverSrc    = $('img.couverture, .couverture img, [itemprop="image"]').first().attr('src');
-    const cover_url   = coverSrc ? (coverSrc.startsWith('http') ? coverSrc : BASE + coverSrc) : null;
-    const synopsis    = $('.synopsis p').text().trim() || $('.resume').text().trim() || null;
+    // Bedetheque utilise Schema.org microdata (itemprop)
+    // Auteurs : premier itemprop="author" hors des avis (dans .liste-auteurs)
+    const authors = [];
+    $('.liste-auteurs [itemprop="author"], a[href*="/auteur-"]').each((_, el) => {
+      const name = $(el).text().trim();
+      if (name && !authors.includes(name)) authors.push(name);
+    });
+    // Fallback : itemprop="author" span (hors avis lecteurs)
+    if (authors.length === 0) {
+      $('[itemprop="author"]').each((_, el) => {
+        const name = $(el).text().trim();
+        if (name && !authors.includes(name) && name.length < 60) authors.push(name);
+      });
+    }
+    const author      = authors[0] || null;
+    const illustrator = authors[1] && authors[1] !== author ? authors[1] : null;
 
-    if (!title && !author && !series) {
-      console.warn('[BDGest] Fiche vide pour', url);
+    // Titre : itemprop="name" ou h3.titre
+    const fullName  = $('meta[itemprop="name"]').attr('content') || $('h3.titre').text().trim();
+    // Série : premier lien /serie- dans la page
+    const series    = $('a[href*="/serie-"]').first().attr('title') || null;
+    // Titre album : supprimer le préfixe "Série - " si présent
+    const title     = series && fullName.startsWith(series + ' - ')
+      ? fullName.slice(series.length + 3).trim()
+      : fullName || null;
+
+    // Tome : depuis l'URL
+    const tomeM     = albumUrl.match(/Tome-(\d+)-/i);
+    const tome      = tomeM ? parseInt(tomeM[1], 10) : null;
+
+    // Éditeur, date, EAN, genre
+    const publisher = $('[itemprop="publisher"]').first().text().trim() || null;
+    const yearM     = $('meta[itemprop="datePublished"]').first().attr('content')?.match(/^(\d{4})/);
+    const year      = yearM ? yearM[1] : null;
+    const eanRaw    = $('[itemprop="isbn"]').first().text().replace(/\D/g, '');
+    const ean       = eanRaw || null;
+    const genre     = $('meta[itemprop="genre"]').attr('content') || null;
+
+    // Couverture
+    const coverSrc  = $('[itemprop="image"]').first().attr('src');
+    const cover_url = coverSrc ? (coverSrc.startsWith('http') ? coverSrc : BASE + coverSrc) : null;
+
+    // Synopsis : #p-serie ou premier paragraphe significatif
+    const synopsis  = $('#p-serie').text().trim() || null;
+
+    if (!title && !author) {
+      console.warn('[BDGest] Fiche vide pour', albumUrl);
       return null;
     }
 
-    const details = { title, series: series || null, tome, author: author || null, illustrator: illustrator || null, publisher, year, genre, ean, cover_url, synopsis };
+    console.log(`[BDGest] Fiche OK: ${title} (${author})`);
+    const details = { title, series, tome, author, illustrator, publisher, year, ean, genre, cover_url, synopsis };
     cache.set(cacheKey, details);
     return details;
 
   } catch (err) {
-    console.error('[BDGest] Erreur fiche:', url, err.message);
+    console.error('[BDGest] Erreur fiche:', albumUrl, err.message);
     return null;
   }
 }

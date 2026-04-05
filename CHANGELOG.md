@@ -5,6 +5,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.7.2] — 2026-04-05
+
+### Corrigé
+
+- **Fiche BDGest** : réécriture des sélecteurs de `getAlbumDetails` pour utiliser les attributs Schema.org (`itemprop`) de Bedetheque — auteur, éditeur, EAN, genre, couverture et date correctement extraits
+- **Moteur de recherche par défaut** : BDGest sélectionné par défaut à l'ouverture de la page de recherche
+
+---
+
 ## [1.7.1] — 2026-04-05
 
 ### Corrigé

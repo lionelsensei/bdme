@@ -78,7 +78,7 @@ function SearchResultItem({ result }) {
 export default function SearchPage() {
   const toast = useToast()
   const [query,       setQuery]       = useState('')
-  const [source,      setSource]      = useState('googlebooks')
+  const [source,      setSource]      = useState('bdgest')
   const [results,     setResults]     = useState([])
   const [loading,     setLoading]     = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)

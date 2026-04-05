@@ -80,8 +80,11 @@ La page de recherche propose un dropdown pour choisir parmi 4 sources :
 
 Le service `server/services/openlibrary.js` interroge `https://openlibrary.org/search.json` avec `subject=comics` et retourne `{ results, totalItems }`.
 
+BDGest est le moteur de recherche sélectionné par défaut dans `SearchPage`.
+
 Le service `server/services/bdgest.js` scrape `bedetheque.com` avec authentification (session cookie) :
 - Login via formulaire `bedetheque.com/connect/login` (CSRF + pseudo + password)
+- `getAlbumDetails` utilise les attributs Schema.org `itemprop` (author, publisher, isbn, genre, image, datePublished)
 - Session mise en cache 55 min
 - Identifiants stockés dans `bdme_api_keys` (service=`bdgest`, `encrypted_login` + `encrypted_password`)
 - `bdgest_id` préfixé `bdg:` pour distinguer des volumeId Google Books
