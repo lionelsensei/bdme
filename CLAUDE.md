@@ -85,7 +85,8 @@ Le service `server/services/bdgest.js` scrape `bedetheque.com` avec authentifica
 - Session mise en cache 55 min
 - Identifiants stockés dans `bdme_api_keys` (service=`bdgest`, `encrypted_login` + `encrypted_password`)
 - `bdgest_id` préfixé `bdg:` pour distinguer des volumeId Google Books
-- `GET /api/search/album/:id` : si `id` commence par `bdg:`, appelle `bdgest.getAlbumDetails(url)` avec `?url=` en query param
+- `bdgest_id` pour les albums BDGest : `bdg:https://www.bedetheque.com/BD-...html` (URL complète encodée dans l'id)
+- `GET /api/search/album/:id` : si `id` commence par `bdg:`, extrait l'URL en retirant le préfixe et appelle `bdgest.getAlbumDetails(url, creds)`
 
 ## Source externe — Google Books API
 

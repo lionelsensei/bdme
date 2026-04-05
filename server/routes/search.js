@@ -105,8 +105,7 @@ router.get('/album/:id', async (req, res) => {
     const id = req.params.id;
     let details;
     if (id.startsWith('bdg:')) {
-      const albumUrl = req.query.url;
-      if (!albumUrl) return res.status(400).json({ error: 'Paramètre url requis pour BDGest' });
+      const albumUrl = id.slice(4); // retire le préfixe "bdg:"
       const creds = await getBdgestCredentials();
       if (!creds) return res.status(503).json({ error: 'Identifiants BDGest non configurés.' });
       details = await bdgest.getAlbumDetails(albumUrl, creds);

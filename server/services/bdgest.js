@@ -101,9 +101,8 @@ function parseResults($) {
     const yearM    = dlText.match(/(\d{4})/);
     const year     = yearM ? yearM[1] : null;
 
-    // ID BDGest dans l'URL : /BD-...-ID.html
-    const idM      = fullUrl.match(/-(\d+)\.html/);
-    const bdgestId = idM ? `bdg:${idM[1]}` : null;
+    // On stocke l'URL complète dans bdgest_id pour pouvoir récupérer la fiche plus tard
+    const bdgestId = fullUrl ? `bdg:${fullUrl}` : null;
 
     if (title || series) {
       results.push({

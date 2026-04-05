@@ -55,7 +55,7 @@ export function BookModal({ book, onClose, onUpdate, onDelete, allSeries = [] })
     async function enrich() {
       const fields = ['author', 'illustrator', 'publisher', 'genre', 'synopsis', 'ean', 'cover_url']
       let details = null
-      try { details = await api.get(`/search/album/${book.bdgest_id}`) } catch {}
+      try { details = await api.get(`/search/album/${encodeURIComponent(book.bdgest_id)}`) } catch {}
       if (!details) return
 
       const enriched = {}

@@ -5,6 +5,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.7.1] — 2026-04-05
+
+### Corrigé
+
+- **Fiche BDGest vide au clic** : l'URL Bedetheque est désormais encodée directement dans `bdgest_id` (`bdg:https://...`) — plus besoin de passer `?url=` en query param ; le modal et la page de recherche récupèrent la fiche correctement depuis la collection comme depuis les résultats
+
+---
+
 ## [1.7.0] — 2026-04-05
 
 ### Ajouté

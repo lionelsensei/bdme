@@ -17,14 +17,9 @@ function SearchResultItem({ result }) {
   const [addingWish, setAddingWish] = useState(false)
 
   async function fetchDetails() {
-    if (!result.bdgest_id) return result
-    if (result.bdgest_id.startsWith('ol:')) return result
-    try {
-      const url = result.bdgest_id.startsWith('bdg:') && result.bdgest_url
-        ? `/search/album/${result.bdgest_id}?url=${encodeURIComponent(result.bdgest_url)}`
-        : `/search/album/${result.bdgest_id}`
-      return { ...result, ...await api.get(url) }
-    } catch { return result }
+    if (!result.bdgest_id || result.bdgest_id.startsWith('ol:')) return result
+    try { return { ...result, ...await api.get(`/search/album/${encodeURIComponent(result.bdgest_id)}`) } }
+    catch { return result }
   }
 
   async function addToCollection() {
