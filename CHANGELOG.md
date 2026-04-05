@@ -5,6 +5,22 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.7.0] — 2026-04-05
+
+### Ajouté
+
+- **Recherche BDGest / Bedetheque** : intégration native (scraping authentifié) de la plus grande base de données de BD francophones — les identifiants BDGest sont configurables dans l'admin (chiffrés AES-256)
+- **Admin — Sources externes** : l'onglet "Sources externes" affiche désormais deux cartes séparées : Google Books (clé API) et BDGest (pseudo + mot de passe) avec modals dédiés
+- **Fiche album BDGest** : récupération des données complètes (auteur, dessinateur, éditeur, EAN, synopsis, couverture) via la page album Bedetheque
+
+### Modifié
+
+- **BDGest passe en source interne** : la recherche BDGest n'ouvre plus un onglet externe — les résultats s'affichent directement dans l'app (nécessite un compte BDGest configuré dans l'admin)
+- `GET /api/search?source=bdgest` : nouveau paramètre de source, credentials récupérés depuis `bdme_api_keys`
+- `GET /api/search/album/:id` : gère les identifiants préfixés `bdg:` (BDGest) en plus des volumeId Google Books
+
+---
+
 ## [1.6.0] — 2026-04-04
 
 ### Ajouté

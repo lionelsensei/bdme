@@ -47,6 +47,58 @@ function CreateUserModal({ onClose, onCreated }) {
   )
 }
 
+function BDGestCredentialsModal({ existing, onClose, onSaved }) {
+  const toast = useToast()
+  const [form, setForm] = useState({ label: existing?.label || 'Compte BDGest', login: '', password: '' })
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      const payload = { label: form.label, service: 'bdgest' }
+      if (form.login)    payload.login    = form.login
+      if (form.password) payload.password = form.password
+      const saved = existing
+        ? await api.put(`/api-keys/${existing.id}`, payload)
+        : await api.post('/api-keys', payload)
+      onSaved(saved); toast(existing ? 'Identifiants mis à jour' : 'Identifiants enregistrés'); onClose()
+    } catch (e) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <div><h2 className="modal-title">Compte BDGest / Bedetheque</h2><p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginTop: '4px' }}>Chiffré en AES-256 avant stockage</p></div>
+          <button className="btn btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="form-group"><label className="form-label">Libellé</label><input className="input" type="text" value={form.label} onChange={set('label')} required /></div>
+          <div className="form-group">
+            <label className="form-label">Pseudo BDGest *</label>
+            <input className="input" type="text" value={form.login} onChange={set('login')} placeholder={existing ? '(laisser vide pour conserver)' : 'Votre pseudo bdgest.com'} {...(!existing ? { required: true } : {})} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Mot de passe BDGest *</label>
+            <input className="input" type="password" value={form.password} onChange={set('password')} placeholder={existing ? '(laisser vide pour conserver)' : 'Votre mot de passe bdgest.com'} {...(!existing ? { required: true } : {})} />
+            <span style={{ fontSize: '0.72rem', color: 'var(--text3)', marginTop: '4px' }}>Compte sur bdgest.com — accès à la base Bedetheque</span>
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} /> : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function GoogleBooksKeyModal({ existing, onClose, onSaved }) {
   const toast = useToast()
   const [form, setForm] = useState({ label: existing?.label || 'Clé Google Books', password: '' })
@@ -101,8 +153,10 @@ export default function AdminPage() {
   const [showCreateUser, setShowCreateUser] = useState(false)
   const [apiKeys, setApiKeys] = useState([])
   const [keysLoading, setKeysLoading] = useState(true)
-  const [showKeyModal, setShowKeyModal] = useState(false)
-  const [editingKey,   setEditingKey]   = useState(null)
+  const [showKeyModal,     setShowKeyModal]     = useState(false)
+  const [editingKey,       setEditingKey]       = useState(null)
+  const [showBdgestModal,  setShowBdgestModal]  = useState(false)
+  const [editingBdgestKey, setEditingBdgestKey] = useState(null)
 
   useEffect(() => {
     api.get('/users').then(setUsers).catch(e => toast(e.message, 'error')).finally(() => setUsersLoading(false))
@@ -172,33 +226,47 @@ export default function AdminPage() {
 
       {tab === 'keys' && (
         <>
-          <div className="section-header" style={{ marginBottom: '16px' }}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text2)', margin: 0 }}>Clé API Google Books pour la recherche et les fiches albums.</p>
-            {apiKeys.length === 0 && <button className="btn btn-primary btn-sm" onClick={() => { setEditingKey(null); setShowKeyModal(true) }}>+ Ajouter</button>}
-          </div>
-          {keysLoading ? <div style={{ textAlign: 'center', padding: '40px' }}><div className="spinner" /></div>
-          : apiKeys.length === 0 ? (
-            <div className="empty-state" style={{ padding: '40px' }}>
-              <div className="empty-state-icon">🔑</div>
-              <h3>Aucune clé configurée</h3>
-              <p>Ajoutez votre clé API Google Books pour activer la recherche.<br />Sans clé, la recherche fonctionne mais avec des limites de quota.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {apiKeys.map(k => (
-                <div key={k.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.95rem', color: 'var(--text)' }}>{k.label}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text3)', marginTop: '2px' }}>Service : {k.service} · Ajouté le {new Date(k.created_at).toLocaleDateString('fr-FR')}</div>
+          {keysLoading ? <div style={{ textAlign: 'center', padding: '40px' }}><div className="spinner" /></div> : (() => {
+            const googleKey = apiKeys.find(k => k.service === 'googlebooks')
+            const bdgestKey = apiKeys.find(k => k.service === 'bdgest')
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Google Books */}
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: googleKey ? '12px' : 0 }}>
+                    <div>
+                      <div style={{ fontSize: '0.95rem', color: 'var(--text)', fontWeight: 500 }}>Google Books</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text3)', marginTop: '2px' }}>Clé API optionnelle — sans clé, quota limité</div>
+                    </div>
+                    {!googleKey
+                      ? <button className="btn btn-primary btn-sm" onClick={() => { setEditingKey(null); setShowKeyModal(true) }}>+ Ajouter</button>
+                      : <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setEditingKey(googleKey); setShowKeyModal(true) }}>Modifier</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => deleteKey(googleKey.id)}>Supprimer</button>
+                        </div>}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setEditingKey(k); setShowKeyModal(true) }}>Modifier</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteKey(k.id)}>Supprimer</button>
-                  </div>
+                  {googleKey && <div style={{ fontSize: '0.78rem', color: 'var(--text3)' }}>{googleKey.label} · ajouté le {new Date(googleKey.created_at).toLocaleDateString('fr-FR')}</div>}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* BDGest */}
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: bdgestKey ? '12px' : 0 }}>
+                    <div>
+                      <div style={{ fontSize: '0.95rem', color: 'var(--text)', fontWeight: 500 }}>BDGest / Bedetheque</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text3)', marginTop: '2px' }}>Compte requis pour la recherche dans la base Bedetheque</div>
+                    </div>
+                    {!bdgestKey
+                      ? <button className="btn btn-primary btn-sm" onClick={() => { setEditingBdgestKey(null); setShowBdgestModal(true) }}>+ Ajouter</button>
+                      : <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setEditingBdgestKey(bdgestKey); setShowBdgestModal(true) }}>Modifier</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => deleteKey(bdgestKey.id)}>Supprimer</button>
+                        </div>}
+                  </div>
+                  {bdgestKey && <div style={{ fontSize: '0.78rem', color: 'var(--text3)' }}>{bdgestKey.label} · ajouté le {new Date(bdgestKey.created_at).toLocaleDateString('fr-FR')}</div>}
+                </div>
+              </div>
+            )
+          })()}
         </>
       )}
 
@@ -208,6 +276,13 @@ export default function AdminPage() {
           existing={editingKey}
           onClose={() => { setShowKeyModal(false); setEditingKey(null) }}
           onSaved={saved => setApiKeys(prev => editingKey ? prev.map(k => k.id === saved.id ? saved : k) : [saved, ...prev])}
+        />
+      )}
+      {showBdgestModal && (
+        <BDGestCredentialsModal
+          existing={editingBdgestKey}
+          onClose={() => { setShowBdgestModal(false); setEditingBdgestKey(null) }}
+          onSaved={saved => setApiKeys(prev => editingBdgestKey ? prev.map(k => k.id === saved.id ? saved : k) : [saved, ...prev])}
         />
       )}
     </>

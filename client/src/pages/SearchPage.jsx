@@ -5,7 +5,7 @@ import { useToast } from '../hooks/useToast'
 const SOURCES = [
   { value: 'googlebooks',  label: 'Google Books',  external: false },
   { value: 'openlibrary',  label: 'Open Library',  external: false },
-  { value: 'bdgest',       label: 'BDGest',         external: true,  url: q => `https://www.bdgest.com/search/?op=bdgest&q=${encodeURIComponent(q)}` },
+  { value: 'bdgest',       label: 'BDGest',         external: false },
   { value: 'amazon',       label: 'Amazon',         external: true,  url: q => `https://www.amazon.fr/s?k=${encodeURIComponent(q)}&i=stripbooks` },
 ]
 
@@ -17,9 +17,14 @@ function SearchResultItem({ result }) {
   const [addingWish, setAddingWish] = useState(false)
 
   async function fetchDetails() {
-    if (!result.bdgest_id || result.bdgest_id.startsWith('ol:')) return result
-    try { return { ...result, ...await api.get(`/search/album/${result.bdgest_id}`) } }
-    catch { return result }
+    if (!result.bdgest_id) return result
+    if (result.bdgest_id.startsWith('ol:')) return result
+    try {
+      const url = result.bdgest_id.startsWith('bdg:') && result.bdgest_url
+        ? `/search/album/${result.bdgest_id}?url=${encodeURIComponent(result.bdgest_url)}`
+        : `/search/album/${result.bdgest_id}`
+      return { ...result, ...await api.get(url) }
+    } catch { return result }
   }
 
   async function addToCollection() {

@@ -13,12 +13,12 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { service, label, password } = req.body;
-  if (!password || !label) return res.status(400).json({ error: 'label et clé API requis' });
+  const { service, label, password, login } = req.body;
+  if (!password || !label) return res.status(400).json({ error: 'label et mot de passe requis' });
   const { data, error } = await supabase.from('bdme_api_keys').insert({
     service: service || 'googlebooks',
     label,
-    encrypted_login:    null,
+    encrypted_login:    login ? encrypt(login) : null,
     encrypted_password: encrypt(password),
     created_by:         req.user.id,
   }).select('id,service,label,created_at').single();
@@ -27,9 +27,10 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { label, password } = req.body;
+  const { label, password, login } = req.body;
   const updates = {};
   if (label)    updates.label              = label;
+  if (login)    updates.encrypted_login    = encrypt(login);
   if (password) updates.encrypted_password = encrypt(password);
   const { data, error } = await supabase.from('bdme_api_keys').update(updates).eq('id', req.params.id).select('id,service,label,updated_at').single();
   if (error) return res.status(500).json({ error: error.message });

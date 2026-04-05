@@ -2,6 +2,7 @@ const express       = require('express');
 const router        = express.Router();
 const books         = require('../services/googlebooks');
 const openLibrary   = require('../services/openlibrary');
+const bdgest        = require('../services/bdgest');
 const { decrypt }   = require('../services/crypto');
 const supabase      = require('../services/supabase');
 
@@ -17,6 +18,18 @@ async function getApiKey() {
   return process.env.GOOGLE_BOOKS_API_KEY || null;
 }
 
+async function getBdgestCredentials() {
+  const { data } = await supabase
+    .from('bdme_api_keys')
+    .select('encrypted_login, encrypted_password')
+    .eq('service', 'bdgest')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (!data?.encrypted_login || !data?.encrypted_password) return null;
+  return { login: decrypt(data.encrypted_login), password: decrypt(data.encrypted_password) };
+}
+
 // GET /api/search?q=...
 router.get('/', async (req, res) => {
   const query      = (req.query.q || '').trim();
@@ -27,6 +40,10 @@ router.get('/', async (req, res) => {
     let results, totalItems;
     if (source === 'openlibrary') {
       ({ results, totalItems } = await openLibrary.search(query, startIndex));
+    } else if (source === 'bdgest') {
+      const creds = await getBdgestCredentials();
+      if (!creds) return res.status(503).json({ error: 'Identifiants BDGest non configurés dans l\'admin.' });
+      ({ results, totalItems } = await bdgest.search(query, creds));
     } else {
       const apiKey = await getApiKey();
       ({ results, totalItems } = await books.search(query, apiKey, startIndex));
@@ -82,11 +99,21 @@ router.get('/isbn/:ean', async (req, res) => {
   }
 });
 
-// GET /api/search/album/:id
+// GET /api/search/album/:id  (id préfixé bdg: → BDGest, sinon Google Books)
 router.get('/album/:id', async (req, res) => {
   try {
-    const apiKey  = await getApiKey();
-    const details = await books.getAlbumDetails(req.params.id, apiKey);
+    const id = req.params.id;
+    let details;
+    if (id.startsWith('bdg:')) {
+      const albumUrl = req.query.url;
+      if (!albumUrl) return res.status(400).json({ error: 'Paramètre url requis pour BDGest' });
+      const creds = await getBdgestCredentials();
+      if (!creds) return res.status(503).json({ error: 'Identifiants BDGest non configurés.' });
+      details = await bdgest.getAlbumDetails(albumUrl, creds);
+    } else {
+      const apiKey = await getApiKey();
+      details = await books.getAlbumDetails(id, apiKey);
+    }
     if (!details) return res.status(404).json({ error: 'Fiche introuvable' });
     res.json(details);
   } catch (err) {
