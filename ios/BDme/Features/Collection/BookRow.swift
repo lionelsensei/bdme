@@ -41,7 +41,10 @@ struct BookRow: View {
     }
 
     private var metaLine: String {
-        [book.author, book.year.map(String.init)]
+        let authors = [book.author, book.illustrator != book.author ? book.illustrator : nil]
+            .compactMap { $0 }
+            .joined(separator: " & ")
+        return [authors.isEmpty ? nil : authors, book.year.map(String.init)]
             .compactMap { $0 }
             .joined(separator: " · ")
     }

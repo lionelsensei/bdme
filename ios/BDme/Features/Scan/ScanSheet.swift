@@ -12,6 +12,7 @@ struct ScanSheet: View {
     @State private var found: SearchResult?
     @State private var isSearching = false
     @State private var errorMessage: String?
+    @State private var pickingCollectionFor: SearchResult?
 
     enum Mode { case camera, manual }
 
@@ -50,7 +51,7 @@ struct ScanSheet: View {
                 if let found {
                     SearchResultRow(
                         result: found,
-                        onAddToCollection: { addToCollection(found); dismiss() },
+                        onAddToCollection: { pickingCollectionFor = found },
                         onAddToWishlist: { addToWishlist(found); dismiss() }
                     )
                 }
@@ -62,6 +63,12 @@ struct ScanSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Fermer") { dismiss() }
+                }
+            }
+            .sheet(item: $pickingCollectionFor) { result in
+                CollectionPickerSheet(result: result) { collectionIds in
+                    addToCollection(result, collectionIds: collectionIds)
+                    dismiss()
                 }
             }
         }
@@ -82,12 +89,12 @@ struct ScanSheet: View {
         }
     }
 
-    private func addToCollection(_ result: SearchResult) {
+    private func addToCollection(_ result: SearchResult, collectionIds: [UUID]) {
         library.addBook(Book(
             bdgestId: result.bdgestId, title: result.title, series: result.series, tome: result.tome,
             author: result.author, illustrator: result.illustrator, publisher: result.publisher,
             year: result.year, genre: result.genre, ean: result.ean, coverURL: result.coverURL,
-            synopsis: result.synopsis
+            synopsis: result.synopsis, collectionIds: collectionIds
         ))
     }
 

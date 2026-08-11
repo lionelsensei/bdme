@@ -25,6 +25,7 @@ enum ICloudContainer {
 
     static var booksURL: URL? { subfolder("Books") }
     static var wishlistURL: URL? { subfolder("Wishlist") }
+    static var collectionsURL: URL? { subfolder("Collections") }
     static var backupsURL: URL? { subfolder("Backups") }
 
     /// Repli local (hors iCloud) utilisé si le compte iCloud n'est pas disponible,

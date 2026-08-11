@@ -20,6 +20,15 @@ struct SearchResultRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(result.title).font(BDTheme.sans(14.5)).foregroundColor(BDTheme.text)
                 Text(metaLine).font(BDTheme.sans(12)).foregroundColor(BDTheme.text3)
+                if let illustrator = result.illustrator, illustrator != result.author {
+                    Text("Dessin : \(illustrator)").font(BDTheme.sans(11.5)).foregroundColor(BDTheme.text3)
+                }
+                if let synopsis = result.synopsis, !synopsis.isEmpty {
+                    Text(synopsis)
+                        .font(BDTheme.sans(11.5))
+                        .foregroundColor(BDTheme.text3)
+                        .lineLimit(2)
+                }
 
                 HStack(spacing: 6) {
                     Button("+ Collection", action: onAddToCollection)

@@ -10,6 +10,7 @@ struct BookDetailModal: View {
     @State private var editingSeries = false
     @State private var seriesDraft = ""
     @State private var isEnriching = false
+    @State private var confirmingDelete = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,8 @@ struct BookDetailModal: View {
                     if let synopsis = book.synopsis, !synopsis.isEmpty {
                         Text(synopsis).font(BDTheme.sans(13.5)).foregroundColor(BDTheme.text2)
                     }
+                    collectionsSection
+                    deleteSection
                 }
                 .padding(20)
             }
@@ -118,6 +121,73 @@ struct BookDetailModal: View {
             }
             if let publisher = book.publisher {
                 Text(publisher).font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+            }
+            if let genre = book.genre {
+                Text(genre).font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var collectionsSection: some View {
+        if !library.collections.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Collections").font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+                FlowChips(items: library.collections) { collection in
+                    let isMember = book.collectionIds.contains(collection.id)
+                    Button {
+                        toggleCollection(collection)
+                    } label: {
+                        Text(collection.name)
+                            .font(BDTheme.sans(12.5))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(isMember ? BDTheme.accentBg : BDTheme.bg3)
+                            .foregroundColor(isMember ? BDTheme.accent : BDTheme.text2)
+                            .overlay(
+                                Capsule().stroke(isMember ? BDTheme.accent.opacity(0.3) : BDTheme.border2, lineWidth: 1)
+                            )
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    private func toggleCollection(_ collection: BookCollection) {
+        var ids = book.collectionIds
+        if let idx = ids.firstIndex(of: collection.id) {
+            ids.remove(at: idx)
+        } else {
+            ids.append(collection.id)
+        }
+        book.collectionIds = ids
+        library.updateBook(book)
+    }
+
+    private var deleteSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().background(BDTheme.border)
+            if confirmingDelete {
+                HStack {
+                    Text("Supprimer définitivement cet album ?")
+                        .font(BDTheme.sans(12.5))
+                        .foregroundColor(BDTheme.text2)
+                    Spacer()
+                    Button("Annuler") { confirmingDelete = false }
+                        .buttonStyle(.bdGhost)
+                    Button("Supprimer") {
+                        library.deleteBook(book)
+                        dismiss()
+                    }
+                    .foregroundColor(BDTheme.red)
+                }
+            } else {
+                Button("Supprimer de ma collection") {
+                    confirmingDelete = true
+                }
+                .foregroundColor(BDTheme.red)
+                .font(BDTheme.sans(13))
             }
         }
     }

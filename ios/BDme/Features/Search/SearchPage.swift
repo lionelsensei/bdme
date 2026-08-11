@@ -12,6 +12,7 @@ struct SearchPage: View {
     @State private var totalItems = 0
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var pickingCollectionFor: SearchResult?
 
     var body: some View {
         NavigationStack {
@@ -42,7 +43,7 @@ struct SearchPage: View {
                         ForEach(results) { result in
                             SearchResultRow(
                                 result: result,
-                                onAddToCollection: { addToCollection(result) },
+                                onAddToCollection: { pickingCollectionFor = result },
                                 onAddToWishlist: { addToWishlist(result) }
                             )
                         }
@@ -59,6 +60,11 @@ struct SearchPage: View {
             .background(BDTheme.bg.ignoresSafeArea())
             .navigationTitle("Recherche")
             .onChange(of: source) { _ in Task { await runSearch(reset: true) } }
+            .sheet(item: $pickingCollectionFor) { result in
+                CollectionPickerSheet(result: result) { collectionIds in
+                    addToCollection(result, collectionIds: collectionIds)
+                }
+            }
         }
     }
 
@@ -92,12 +98,12 @@ struct SearchPage: View {
         }
     }
 
-    private func addToCollection(_ result: SearchResult) {
+    private func addToCollection(_ result: SearchResult, collectionIds: [UUID]) {
         library.addBook(Book(
             bdgestId: result.bdgestId, title: result.title, series: result.series, tome: result.tome,
             author: result.author, illustrator: result.illustrator, publisher: result.publisher,
             year: result.year, genre: result.genre, ean: result.ean, coverURL: result.coverURL,
-            synopsis: result.synopsis
+            synopsis: result.synopsis, collectionIds: collectionIds
         ))
     }
 

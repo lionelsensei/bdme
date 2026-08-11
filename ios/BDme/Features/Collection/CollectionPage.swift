@@ -12,6 +12,8 @@ struct CollectionPage: View {
     @State private var openedSeries: String?
     @State private var selectedBook: Book?
     @State private var showScanSheet = false
+    @State private var showManageCollections = false
+    @State private var collectionFilter: BookCollection?
 
     enum ViewMode { case grid, list }
 
@@ -49,6 +51,11 @@ struct CollectionPage: View {
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
+                        showManageCollections = true
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    Button {
                         withAnimation { groupBySeries.toggle(); openedSeries = nil }
                     } label: {
                         Label("Séries", systemImage: groupBySeries ? "square.grid.2x2.fill" : "square.grid.2x2")
@@ -66,6 +73,9 @@ struct CollectionPage: View {
             .sheet(isPresented: $showScanSheet) {
                 ScanSheet()
             }
+            .sheet(isPresented: $showManageCollections) {
+                ManageCollectionsSheet()
+            }
         }
     }
 
@@ -74,6 +84,7 @@ struct CollectionPage: View {
     private var filteredBooks: [Book] {
         library.books.filter { book in
             (statusFilter == nil || book.readStatus == statusFilter)
+                && (collectionFilter == nil || book.collectionIds.contains(collectionFilter!.id))
                 && (query.isEmpty || book.title.localizedCaseInsensitiveContains(query)
                     || (book.series?.localizedCaseInsensitiveContains(query) ?? false))
         }
@@ -108,6 +119,34 @@ struct CollectionPage: View {
                 filterChip(.reading, label: "En cours")
                 filterChip(.read, label: "Lu")
             }
+        }
+
+        if !library.collections.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    collectionChip(nil, label: "Toutes les collections")
+                    ForEach(library.collections) { collection in
+                        collectionChip(collection, label: collection.name)
+                    }
+                }
+            }
+        }
+    }
+
+    private func collectionChip(_ collection: BookCollection?, label: String) -> some View {
+        Button {
+            withAnimation { collectionFilter = collection; openedSeries = nil }
+        } label: {
+            Text(label)
+                .font(BDTheme.sans(12.5))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(collectionFilter?.id == collection?.id ? BDTheme.accentBg : Color.clear)
+                .foregroundColor(collectionFilter?.id == collection?.id ? BDTheme.accent : BDTheme.text3)
+                .overlay(
+                    Capsule().stroke(collectionFilter?.id == collection?.id ? BDTheme.accent.opacity(0.3) : BDTheme.border2, lineWidth: 1)
+                )
+                .clipShape(Capsule())
         }
     }
 
@@ -154,7 +193,7 @@ struct CollectionPage: View {
 
     @ViewBuilder
     private var content: some View {
-        if !groupBySeries {
+        if !groupBySeries || collectionFilter != nil {
             bookCollection(filteredBooks)
         } else if let openedSeries {
             bookCollection(booksInOpenedSeries.filter { $0.series == openedSeries })

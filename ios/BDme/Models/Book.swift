@@ -20,6 +20,8 @@ struct Book: Identifiable, Codable, Equatable {
     var coverURL: String?
     var synopsis: String?
     var readStatus: ReadStatus
+    /// Collections perso auxquelles cet album appartient (0, 1 ou plusieurs).
+    var collectionIds: [UUID]
     var addedAt: Date
     var updatedAt: Date
 
@@ -38,6 +40,7 @@ struct Book: Identifiable, Codable, Equatable {
         coverURL: String? = nil,
         synopsis: String? = nil,
         readStatus: ReadStatus = .unread,
+        collectionIds: [UUID] = [],
         addedAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -55,7 +58,31 @@ struct Book: Identifiable, Codable, Equatable {
         self.coverURL = coverURL
         self.synopsis = synopsis
         self.readStatus = readStatus
+        self.collectionIds = collectionIds
         self.addedAt = addedAt
         self.updatedAt = updatedAt
+    }
+
+    // Décodage tolérant : les albums déjà synchronisés avant l'introduction
+    // des collections n'ont pas ce champ dans leur JSON.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        bdgestId = try c.decodeIfPresent(String.self, forKey: .bdgestId)
+        title = try c.decode(String.self, forKey: .title)
+        series = try c.decodeIfPresent(String.self, forKey: .series)
+        tome = try c.decodeIfPresent(Int.self, forKey: .tome)
+        author = try c.decodeIfPresent(String.self, forKey: .author)
+        illustrator = try c.decodeIfPresent(String.self, forKey: .illustrator)
+        publisher = try c.decodeIfPresent(String.self, forKey: .publisher)
+        year = try c.decodeIfPresent(Int.self, forKey: .year)
+        genre = try c.decodeIfPresent(String.self, forKey: .genre)
+        ean = try c.decodeIfPresent(String.self, forKey: .ean)
+        coverURL = try c.decodeIfPresent(String.self, forKey: .coverURL)
+        synopsis = try c.decodeIfPresent(String.self, forKey: .synopsis)
+        readStatus = try c.decode(ReadStatus.self, forKey: .readStatus)
+        collectionIds = try c.decodeIfPresent([UUID].self, forKey: .collectionIds) ?? []
+        addedAt = try c.decode(Date.self, forKey: .addedAt)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
     }
 }
