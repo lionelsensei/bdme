@@ -93,14 +93,32 @@ Thème sombre, porté fidèlement depuis l'ex-`client/src/styles/global.css` dan
 - Indicateurs de statut : point vert (lu), doré (en cours), gris (non lu)
 - Badges collection (vert) / souhaits (doré)
 
+## Versioning & release TestFlight
+
+Source de vérité : `ios/project.yml` (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`), propagé à `CFBundleShortVersionString`/`CFBundleVersion` via substitution `$(...)` dans `Info.plist`. Affiché dans l'app : Réglages → "Version" (lu dynamiquement depuis le bundle, `AppVersion.display` dans `SettingsPage.swift`).
+
+Scripts dans `ios/scripts/` :
+- `bump_build.sh` — incrémente `CURRENT_PROJECT_VERSION` de 1 (à faire avant tout nouvel upload TestFlight, Apple refuse un doublon de numéro de build pour une même version)
+- `bump_version.sh [major|minor|patch]` — incrémente `MARKETING_VERSION` (défaut `patch`) et remet le build à 1
+- `release.sh [--no-bump]` — pipeline complet : bump build (sauf `--no-bump`), `xcodegen generate`, archive Release, export + upload App Store Connect via la clé API (`ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_PATH`, défauts déjà configurés dans le script)
+
+Workflow type pour une nouvelle version testable :
+```bash
+cd ios
+./scripts/release.sh
+git add project.yml && git commit -m "Build X" && git push
+```
+Le build apparaît ensuite automatiquement dans le groupe TestFlight interne "BDme Internal" (`hasAccessToAllBuilds: true`).
+
+Clé API App Store Connect : `ios/.appstoreconnect_key/AuthKey_NLFDK62899.p8` (gitignorée, rôle Admin, Key ID `NLFDK62899`, Issuer ID `a968ca85-6ead-4737-b01b-c6b81ba9b847`). App Store Connect App ID `6800276979`, bundle ID enregistré `Q8UMUHD7XK` (capacité iCloud activée dessus), Team ID `K52D9XXV9P`.
+
 ## Suivi / travaux restants connus
 
 - Ajouter les fichiers `.ttf` DM Serif Display / DM Sans au bundle et réactiver `UIAppFonts` dans `project.yml`
-- Icône d'app réelle (`Assets.xcassets/AppIcon.appiconset` est un jeu de données vide pour l'instant)
+- Icône d'app définitive (actuellement un placeholder généré — rangée de livres aux couleurs du thème, `AppIcon.appiconset/icon-1024.png`)
 - Cache disque des couvertures (actuellement re-téléchargées à chaque affichage)
 - Import ponctuel de l'ancienne collection Supabase (export JSON → un fichier par album dans `BDme/Books/`)
-- Déploiement du `server/` réduit sur le VPS OVH existant (remplace l'ancien serveur complet)
-- Tests réels multi-appareils iCloud (édition simultanée, résolution de conflits) — le simulateur iOS gère mal iCloud Drive, nécessite des devices physiques
+- Tests réels multi-appareils iCloud (édition simultanée, résolution de conflits) — le simulateur iOS gère mal iCloud Drive, nécessite des devices physiques (deux appareils déjà appairés en local : iPhone "Yopro 17", iPad "YoyoPad (2)")
 
 ## Conventions
 

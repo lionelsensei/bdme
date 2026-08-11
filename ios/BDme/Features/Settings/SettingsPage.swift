@@ -49,8 +49,26 @@ struct SettingsPage: View {
                 if saved {
                     Text("Enregistré.").font(BDTheme.sans(12)).foregroundColor(BDTheme.green)
                 }
+
+                Section {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(AppVersion.display)
+                            .foregroundColor(BDTheme.text3)
+                    }
+                }
             }
             .navigationTitle("Réglages")
         }
+    }
+}
+
+enum AppVersion {
+    static var display: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "v\(version) (\(build))"
     }
 }

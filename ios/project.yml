@@ -9,6 +9,8 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: K52D9XXV9P
     CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
   BDme:
     type: application
@@ -40,6 +42,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: "BDme utilise l'appareil photo pour scanner le code-barres (EAN) de vos albums."
         ITSAppUsesNonExemptEncryption: false
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
     entitlements:
       path: BDme/Resources/BDme.entitlements
       properties:
