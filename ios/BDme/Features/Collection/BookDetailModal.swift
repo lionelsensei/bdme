@@ -198,31 +198,16 @@ struct BookDetailModal: View {
         library.updateBook(book)
     }
 
-    /// Si bdgestId présent et auteur/couverture manquants, enrichit via la
-    /// source d'origine puis persiste les champs manquants.
+    /// Filet de sécurité : si l'enrichissement proactif à l'ajout (voir
+    /// LibraryStore.addBookEnriching) n'a pas eu lieu ou a échoué, on
+    /// retente à l'ouverture du détail. Idempotent (BookEnricher ne fait
+    /// rien si les infos sont déjà là).
     private func enrichIfNeeded() async {
-        guard let bdgestId = book.bdgestId,
-              book.author == nil || book.coverURL == nil else { return }
         isEnriching = true
         defer { isEnriching = false }
-
-        do {
-            let details: SearchResult
-            if bdgestId.hasPrefix("bdg:") {
-                details = try await BDGestProxyService.fetchDetails(bdgestId: bdgestId)
-            } else {
-                details = try await GoogleBooksService.fetchDetails(volumeId: bdgestId)
-            }
-            book.author = book.author ?? details.author
-            book.illustrator = book.illustrator ?? details.illustrator
-            book.publisher = book.publisher ?? details.publisher
-            book.genre = book.genre ?? details.genre
-            book.synopsis = book.synopsis ?? details.synopsis
-            book.ean = book.ean ?? details.ean
-            book.coverURL = book.coverURL ?? details.coverURL
+        if let enriched = await BookEnricher.enrichIfNeeded(book) {
+            book = enriched
             library.updateBook(book)
-        } catch {
-            // Enrichissement best-effort : on garde les données locales si ça échoue.
         }
     }
 }

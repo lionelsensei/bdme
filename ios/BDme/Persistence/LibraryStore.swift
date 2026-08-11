@@ -38,6 +38,17 @@ final class LibraryStore: ObservableObject {
 
     // MARK: Collection
 
+    /// Ajoute l'album immédiatement (pas d'attente réseau), puis lance
+    /// l'enrichissement (auteur, dessinateur, résumé…) en tâche de fond.
+    func addBookEnriching(_ book: Book) {
+        addBook(book)
+        Task {
+            if let enriched = await BookEnricher.enrichIfNeeded(book) {
+                updateBook(enriched)
+            }
+        }
+    }
+
     func addBook(_ book: Book) {
         do {
             try bookRepo.save(book)

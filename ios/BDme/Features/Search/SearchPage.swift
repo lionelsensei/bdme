@@ -99,7 +99,7 @@ struct SearchPage: View {
     }
 
     private func addToCollection(_ result: SearchResult, collectionIds: [UUID]) {
-        library.addBook(Book(
+        library.addBookEnriching(Book(
             bdgestId: result.bdgestId, title: result.title, series: result.series, tome: result.tome,
             author: result.author, illustrator: result.illustrator, publisher: result.publisher,
             year: result.year, genre: result.genre, ean: result.ean, coverURL: result.coverURL,
