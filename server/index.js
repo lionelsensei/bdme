@@ -37,4 +37,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`BDme BDGest proxy running on port ${PORT}`));
+const HOST = process.env.HOST || '127.0.0.1';
+// N'écoute que sur localhost : le serveur n'est joignable que via le
+// reverse proxy nginx (HTTPS), jamais en direct sur le port depuis Internet.
+app.listen(PORT, HOST, () => console.log(`BDme BDGest proxy running on ${HOST}:${PORT}`));
