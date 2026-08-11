@@ -5,6 +5,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.7.3] — 2026-08-11
+
+### Corrigé
+
+- **Numéro de version** : `MARKETING_VERSION` (`ios/project.yml`) était resté à `1.0.0` depuis
+  le pivot vers l'app iOS native alors que ce changelog était déjà à 1.7.2 — réaligné sur la
+  suite du changelog
+
+---
+
 ## [1.7.2] — 2026-04-05
 
 ### Corrigé
