@@ -16,9 +16,20 @@ final class LibraryStore: ObservableObject {
         ICloudConflictResolver.resolvePendingConflicts(in: ICloudContainer.booksURL)
         ICloudConflictResolver.resolvePendingConflicts(in: ICloudContainer.wishlistURL)
         ICloudConflictResolver.resolvePendingConflicts(in: ICloudContainer.collectionsURL)
+        // Chaque source est chargée indépendamment : un échec ponctuel sur
+        // l'une (latence iCloud, coordination fichier) ne doit jamais
+        // vider silencieusement les autres.
         do {
             books = try bookRepo.loadAll().sorted { $0.updatedAt > $1.updatedAt }
+        } catch {
+            lastError = error.localizedDescription
+        }
+        do {
             wishlist = try wishlistRepo.loadAll().sorted { $0.updatedAt > $1.updatedAt }
+        } catch {
+            lastError = error.localizedDescription
+        }
+        do {
             collections = try collectionRepo.loadAll().sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         } catch {
             lastError = error.localizedDescription
