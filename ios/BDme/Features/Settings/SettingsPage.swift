@@ -6,7 +6,7 @@ struct SettingsPage: View {
     @EnvironmentObject private var library: LibraryStore
 
     @State private var googleBooksKey = KeychainStore.shared.read(key: .googleBooksApiKey) ?? ""
-    @State private var bdgestProxyURL = KeychainStore.shared.read(key: .bdgestProxyURL) ?? ""
+    @State private var bdgestProxyURL = KeychainStore.shared.read(key: .bdgestProxyURL) ?? "https://bdme.liooonel.fr"
     @State private var bdgestProxyToken = KeychainStore.shared.read(key: .bdgestProxyToken) ?? ""
     @State private var saved = false
 
