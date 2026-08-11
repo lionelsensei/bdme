@@ -2,202 +2,108 @@
 
 ## Vue d'ensemble
 
-**BDme** est une web app de gestion de BDthèque personnelle. L'interface est sombre, épurée et entièrement responsive (iPhone / iPad / Mac). L'accès est sur invitation uniquement (pas d'auto-inscription). Il existe deux rôles : `user` et `admin`.
+**BDme** est une app iOS native de gestion de BDthèque personnelle (SwiftUI). Usage strictement personnel, mono-compte iCloud, utilisable sur plusieurs appareils (iPhone + iPad) en simultané. Interface sombre, épurée, en français.
+
+> Ce projet a pivoté depuis une v1 web (React + Express + Supabase). Le webapp et le backend Supabase ont été retirés ; seul un mini-backend de proxy BDGest subsiste (voir plus bas).
 
 ## Architecture
 
 ```
-client/         React + Vite (SPA)
-server/         Node.js + Express (API REST, déployé sur VPS OVH)
-schema.sql      Tables Supabase (PostgreSQL self-hosted)
+ios/            Projet Xcode (généré via xcodegen depuis project.yml) — l'app
+server/         Node.js + Express — proxy de recherche BDGest uniquement
+CHANGELOG.md
 ```
 
-Le backend tourne sur un **VPS OVH** et sert d'intermédiaire entre le frontend et Supabase / Google Books API.
+Il n'y a plus de base de données distante : la collection est stockée **localement dans iCloud Drive**, dans un dossier `BDme` à la racine (conteneur ubiquity `iCloud.com.lionelarbey.bdme/Documents`). `server/` ne sert plus qu'à faire le pont vers bedetheque.com (scraping authentifié) — l'app iOS l'appelle uniquement pour la source BDGest ; Google Books et Open Library sont interrogés directement depuis l'app.
 
-## Stack technique
+## App iOS — `ios/`
 
-| Couche        | Technologie                                                  |
-|---------------|--------------------------------------------------------------|
-| Frontend      | React 18, React Router 6, Vite 5                             |
-| Backend       | Node.js, Express 4, Helmet, express-rate-limit               |
-| Auth          | Supabase Auth (JWT via header Authorization)                 |
-| Base          | Supabase PostgreSQL self-hosted (tables préfixées `bdme_`)   |
-| Source externe| Google Books API (REST, pas de scraping)                     |
-| Cache         | node-cache (TTL 1 h pour les résultats de recherche)         |
-| Crypto        | AES-256 pour la clé API Google Books (stockée admin)         |
+Généré avec [XcodeGen](https://github.com/yonaskolb/XcodeGen) à partir de `ios/project.yml`. Après toute modification de `project.yml` :
 
-## Base de données — tables Supabase
+```bash
+cd ios && xcodegen generate
+```
 
-Toutes les tables sont préfixées `bdme_`. RLS activée sur toutes.
+Le projet Xcode (`BDme.xcodeproj`) est généré (donc gitignoré) — ne pas l'éditer à la main, éditer `project.yml`.
 
-| Table            | Description                                               |
-|------------------|-----------------------------------------------------------|
-| `bdme_users`     | Profil utilisateur + rôle (`user` / `admin`)              |
-| `bdme_books`     | Collection BD par utilisateur + statut de lecture         |
-| `bdme_wishlist`  | Liste de souhaits par utilisateur                         |
-| `bdme_api_keys`  | Clé API Google Books chiffrée (accès admin uniquement)    |
+### Structure des sources (`ios/BDme/`)
 
-`bdme_books.read_status` : `'unread'` | `'reading'` | `'read'`
+| Dossier | Contenu |
+|---|---|
+| `App/` | `BDmeApp.swift` (entrée, rotation backup au lancement), `RootView.swift` (TabView) |
+| `DesignSystem/` | `Theme.swift` — portage des tokens de l'ex-`global.css` (couleurs, styles de bouton, badges, pastilles de statut) |
+| `Models/` | `Book`, `WishlistItem`, `ReadStatus` — structs `Codable` |
+| `Persistence/` | `ICloudContainer` (résolution du dossier iCloud), `FileRepository` (CRUD générique un-fichier-par-objet via `NSFileCoordinator`), `LibraryStore` (ObservableObject central), `BackupManager` (rotation 3 backups au lancement), `ICloudConflictResolver` (résolution basique des conflits multi-appareils), `KeychainStore` (secrets perso) |
+| `Networking/` | `GoogleBooksService`, `OpenLibraryService` (appels directs `URLSession`), `BDGestProxyService` (appelle `server/`), `SearchModels` |
+| `Features/Collection` | `CollectionPage`, `BookCard`, `BookRow`, `SeriesFolderCard`, `BookDetailModal` |
+| `Features/Wishlist` | `WishlistPage` |
+| `Features/Search` | `SearchPage`, `SearchResultRow` |
+| `Features/Scan` | `ScanSheet`, `BarcodeScannerView` (VisionKit `DataScannerViewController`) |
+| `Features/Settings` | `SettingsPage` (clé Google Books, URL + jeton du proxy BDGest) |
 
-`bdme_books.bdgest_id` : contient désormais le **Google Books volumeId** (champ réutilisé, pas de migration nécessaire).
+### Stockage local iCloud
 
-Un trigger `handle_new_user` crée automatiquement la ligne `bdme_users` à chaque nouvel utilisateur Supabase Auth.
+- Un fichier JSON par album : `BDme/Books/<uuid>.json`. Idem pour la wishlist : `BDme/Wishlist/<uuid>.json`. Ce découpage (plutôt qu'un fichier unique) minimise les collisions de synchronisation iCloud entre appareils : deux appareils qui modifient des albums différents n'entrent jamais en conflit.
+- Toutes les I/O passent par `NSFileCoordinator` (`FileRepository`).
+- **Backup automatique** : à chaque lancement (`BackupManager.rotateBackupsAtLaunch()`), l'état courant de `Books/` et `Wishlist/` est copié dans `BDme/Backups/backup_1/`, avec rotation `backup_1 → backup_2 → backup_3` (3 générations conservées).
+- **Conflits multi-appareils** : `ICloudConflictResolver` détecte les versions conflictuelles (`NSFileVersion`) au chargement et garde la plus récente (pas de vrai merge de champs — acceptable pour un usage perso à 2 appareils).
+- Les couvertures ne sont **pas** stockées dans iCloud (poids) : à terme, cache local dans `Caches/`, re-téléchargées depuis `coverURL` si absentes.
 
-## Backend — routes API
+### Recherche — 4 sources (`SearchPage`)
 
-Toutes les routes sont protégées par `authMiddleware` (vérification JWT Supabase).
+| Source | Intégration |
+|---|---|
+| Google Books | Appel direct `googleapis.com/books/v1` depuis l'app (clé optionnelle en Keychain) |
+| Open Library | Appel direct `openlibrary.org/search.json` (gratuit, sans clé) |
+| BDGest | Via le proxy `server/` (voir ci-dessous) — scraping authentifié de bedetheque.com |
+| Amazon | Ouvre `amazon.fr/s?i=stripbooks` dans Safari (géré côté app, pas de backend) |
 
-| Route                               | Description                          |
-|-------------------------------------|--------------------------------------|
-| `GET  /health`                      | Health check                         |
-| `GET  /api/changelog`               | CHANGELOG.md en texte brut (public)  |
-| `GET/POST/PATCH/DELETE /api/books`  | CRUD collection                      |
-| `GET/POST/DELETE /api/wishlist`     | CRUD wishlist                        |
-| `GET /api/search?q=&startIndex=`   | Recherche Google Books — retourne `{ results, totalItems }` (pagination) |
-| `GET /api/search/isbn/:ean`        | Recherche par EAN/ISBN               |
-| `GET /api/search/album/:id`        | Fiche détaillée par volumeId         |
-| `GET /api/users`                   | Liste utilisateurs (admin)           |
-| `GET/POST/PUT/DELETE /api/api-keys`| Gestion clé Google Books (admin)     |
+`GoogleTitleParser` (dans `SearchModels.swift`) reproduit `parseGoogleTitle` de l'ex-service Node : décompose `"Série - Titre - n°N"` / `"Série - Titre T.N"` / `"Série - Titre"` / `"Titre seul"`.
 
-Rate limiting global : 200 req/15 min. Route `/api/search` : 30 req/min.
+`bdgestId` : volumeId Google Books, ou `"bdg:<url bedetheque complète>"` pour un résultat BDGest (même convention qu'avant).
 
-### Clé API Google Books
+## Backend — `server/` (proxy BDGest uniquement)
 
-Priorité : `bdme_api_keys` (service=`googlebooks`, champ `encrypted_password`) → variable d'env `GOOGLE_BOOKS_API_KEY`. Sans clé, l'API Google Books fonctionne mais avec un quota limité.
+Toute la logique multi-utilisateur, Supabase, et les routes `books`/`wishlist`/`users`/`api-keys` ont été supprimées avec la v1 web. Le serveur ne fait plus que scraper bedetheque.com pour le compte de l'app iOS personnelle.
 
-## Sources de recherche
+| Route | Description |
+|---|---|
+| `GET /health` | Health check |
+| `GET /api/search?q=&startIndex=` | Recherche BDGest (scraping) |
+| `GET /api/search/album/:id` | Fiche détaillée BDGest (`id` = `bdg:<url>`) |
 
-La page de recherche propose un dropdown pour choisir parmi 4 sources :
+Auth : un simple jeton statique (`PROXY_TOKEN` en `.env`), envoyé par l'app en `Authorization: Bearer <token>` — configuré dans Réglages côté app. Pas de Supabase, pas de rôles.
 
-| Source        | Type      | Intégration                                                                     |
-|---------------|-----------|---------------------------------------------------------------------------------|
-| Google Books  | in-app    | API `googleapis.com/books/v1` (clé optionnelle, stockée admin)                 |
-| Open Library  | in-app    | API `openlibrary.org/search.json` (gratuite, sans clé)                         |
-| BDGest        | in-app    | Scraping authentifié de `bedetheque.com` (identifiants stockés admin)          |
-| Amazon        | externe   | Ouvre `amazon.fr/s?i=stripbooks` dans un nouvel onglet                         |
+Identifiants bedetheque.com : variables d'env `BDGEST_LOGIN` / `BDGEST_PASSWORD` (voir `server/.env.example`), plus de stockage chiffré en base — un seul utilisateur, un seul VPS.
 
-`GET /api/search?q=&startIndex=&source=` accepte `source=googlebooks` (défaut), `source=openlibrary` ou `source=bdgest`. Amazon est géré côté client uniquement (redirection).
+`server/services/bdgest.js` (inchangé dans sa logique) : login via `bedetheque.com/connect/login` (CSRF + pseudo + password), session cookie cachée 55 min, parsing via attributs Schema.org (`itemprop`).
 
-Le service `server/services/openlibrary.js` interroge `https://openlibrary.org/search.json` avec `subject=comics` et retourne `{ results, totalItems }`.
+### Pourquoi garder ce backend
 
-BDGest est le moteur de recherche sélectionné par défaut dans `SearchPage`.
-
-Le service `server/services/bdgest.js` scrape `bedetheque.com` avec authentification (session cookie) :
-- Login via formulaire `bedetheque.com/connect/login` (CSRF + pseudo + password)
-- `getAlbumDetails` utilise les attributs Schema.org `itemprop` (author, publisher, isbn, genre, image, datePublished)
-- Session mise en cache 55 min
-- Identifiants stockés dans `bdme_api_keys` (service=`bdgest`, `encrypted_login` + `encrypted_password`)
-- `bdgest_id` préfixé `bdg:` pour distinguer des volumeId Google Books
-- `bdgest_id` pour les albums BDGest : `bdg:https://www.bedetheque.com/BD-...html` (URL complète encodée dans l'id)
-- `GET /api/search/album/:id` : si `id` commence par `bdg:`, extrait l'URL en retirant le préfixe et appelle `bdgest.getAlbumDetails(url, creds)`
-
-## Source externe — Google Books API
-
-Le service `server/services/googlebooks.js` interroge `https://www.googleapis.com/books/v1` :
-
-- **Recherche** : `GET /volumes?q={query}&maxResults=40&startIndex={n}` (sans filtre de sujet ni `langRestrict`) — pagination via `startIndex`, 40 résultats par page
-- **ISBN** : `GET /volumes?q=isbn:{ean}`
-- **Fiche** : `GET /volumes/{volumeId}`
-
-Mapping des champs retournés :
-
-| Champ BDme    | Source Google Books                              |
-|---------------|--------------------------------------------------|
-| `bdgest_id`   | `item.id` (volumeId)                             |
-| `title`       | parsé depuis `volumeInfo.title` (voir ci-dessous)|
-| `series`      | parsé depuis `volumeInfo.title` (voir ci-dessous)|
-| `tome`        | parsé depuis `volumeInfo.title` ou `subtitle`    |
-| `author`      | `volumeInfo.authors[0]`                          |
-| `illustrator` | `volumeInfo.authors[1]` (si présent)             |
-| `publisher`   | `volumeInfo.publisher`                           |
-| `year`        | 4 premiers chiffres de `publishedDate`           |
-| `genre`       | `volumeInfo.categories[0]`                       |
-| `ean`         | `industryIdentifiers` type `ISBN_13` ou `ISBN_10`|
-| `cover_url`   | `imageLinks.thumbnail` (zoom=0, HTTPS)           |
-| `synopsis`    | `volumeInfo.description` (peut contenir du HTML, rendu via `dangerouslySetInnerHTML`) |
-
-`parseGoogleTitle(rawTitle, subtitle)` décompose le titre Google Books selon ces patterns (par ordre de priorité) :
-
-| Format titre Google Books                  | series            | title                  | tome |
-|--------------------------------------------|-------------------|------------------------|------|
-| `Série - Titre - n°N`                      | Série             | Titre                  | N    |
-| `Série - Titre T.N`                        | Série             | Titre                  | N    |
-| `Série - Titre` (sans tome)                | Série             | Titre                  | null |
-| `Titre seul`                               | subtitle ou null  | Titre                  | null |
-
-## Frontend — pages
-
-| Route          | Composant         | Accès    |
-|----------------|-------------------|----------|
-| `/login`       | `LoginPage`       | Public   |
-| `/`            | `CollectionPage`  | Auth     |
-| `/recherche`   | `SearchPage`      | Auth     |
-| `/souhaits`    | `WishlistPage`    | Auth     |
-| `/admin`       | `AdminPage`       | Admin    |
-
-Navigation via `Nav.jsx` (burger menu sur mobile). Bouton FAB (`ScanButton.jsx`) pour scanner un EAN ou saisir manuellement un album.
-
-### CollectionPage — regroupement par série
-
-Bouton "⊟ Séries" dans les actions (actif par défaut). Quand activé, les albums sont regroupés alphabétiquement par `series` (tri `localeCompare` français). Les albums sans série apparaissent en dernier sous "Albums sans série". Chaque groupe affiche un `SeriesHeader` avec le nom de la série et une pastille dorée indiquant le nombre d'albums. Le regroupement s'applique aux deux vues (grille et liste) et respecte les filtres de statut et la recherche locale.
-
-**Vue dossiers (navigation deux niveaux) :**
-- Quand le groupement est actif et qu'aucun dossier n'est ouvert : les séries sont affichées comme des cartes dossier (`SeriesFolderCard` en grille, `SeriesFolderRow` en liste)
-- Grille : effet d'empilement (jusqu'à 3 couvertures décalées et pivotées), pastille dorée avec le nombre d'albums
-- Liste : première couverture + nom de la série + nombre d'albums + flèche `›`
-- Clic sur un dossier → affiche les albums de cette série triés par numéro de tome croissant, puis par année croissante à défaut de tome (albums sans tome ni année en dernier), avec un fil d'ariane `← Séries · Nom · N albums`
-- Retour au dossier : bouton `← Séries` ou changement de filtre/recherche/groupement
-- La barre de recherche et les filtres de statut sont masqués quand un dossier est ouvert
-
-### Ajout à la collection / wishlist (`SearchPage.jsx`)
-
-Avant d'enregistrer, `fetchDetails()` appelle `GET /api/search/album/:bdgest_id` pour enrichir les données (Google Books retourne déjà tout dans la recherche, mais l'appel garantit la complétude). La réponse est mise en cache 1 h côté serveur.
-
-### Modal détail album (`BookModal` dans `BookCard.jsx`)
-
-À l'ouverture, si `bdgest_id` est présent et que `author` ou `cover_url` sont vides, le modal appelle `GET /api/search/album/:bdgest_id`, applique immédiatement les données enrichies à l'état local `data`, puis persiste les champs manquants via `PATCH /api/books/:id`.
-
-Champs enrichis : `author`, `illustrator`, `publisher`, `genre`, `synopsis`, `ean`, `cover_url`.
-
-- **Numéro de tome** : affiché en grand (police serif, `#N`) si présent.
-- **Auteurs** : scénariste et dessinateur avec mention `(scénario)` / `(dessin)`. Fusionnés si identiques.
-- **Statut de lecture** : 3 boutons (Non lu / En cours / Lu), colorés selon le statut, sauvegarde immédiate.
-- **Édition de la série** : bouton ✎ à côté du nom de série dans l'en-tête du modal — ouvre un champ texte avec autocomplétion (`datalist`) sur les séries existantes de la collection (prop `allSeries` passée depuis `CollectionPage`) ; laisser vide retire l'album de toute série ; PATCH `/api/books/:id` avec `{ series }`.
-
+Le scraping BDGest a été délibérément laissé côté serveur plutôt que porté nativement dans l'app iOS :
+- **Risque App Store** : une app distribuée publiquement embarquant du scraping tiers avec identifiants est plus exposée au rejet (guideline 5.2.1) et à la rétro-ingénierie.
+- **Réactivité** : un changement du HTML de bedetheque.com se corrige côté serveur sans passer par la revue App Store.
+- **Anti-bot** : une IP/UA serveur stable est moins facilement bloquée qu'un client mobile générique.
 
 ## Design system
 
-Thème sombre. Variables CSS dans `client/src/styles/global.css`.
-
-- Accent : `#e8c97a` (doré)
-- Fond principal : `#0f0f11`
-- Polices : `DM Serif Display` (titres), `DM Sans` (corps)
+Thème sombre, porté fidèlement depuis l'ex-`client/src/styles/global.css` dans `ios/BDme/DesignSystem/Theme.swift` :
+- Accent doré `#e8c97a` / `#c9a84c`, fond `#0f0f11` → `#26262c`
+- Police serif pour les titres (`DM Serif Display`), sans-serif pour le corps (`DM Sans`) — **les fichiers de police ne sont pas encore embarqués dans le bundle** (`UIAppFonts` retiré de `project.yml` en attendant), l'app retombe sur les polices système en attendant
 - Indicateurs de statut : point vert (lu), doré (en cours), gris (non lu)
-- Badges : vert `badge-collection`, doré `badge-wishlist`
-- Version affichée via `VersionFooter.jsx` (composant unique) en bas de la page de login et de chaque page authentifiée. Affiche `vX.Y.Z` pour tous ; le lien `· changelog` n'est visible que pour les admins (`profile.role === 'admin'`) — un clic ouvre un modal qui fetche `GET /api/changelog` (endpoint public Express) et rend le CHANGELOG.md avec un rendu minimal (titres, puces, séparateurs). La version est à maintenir uniquement dans la constante `VERSION` de `VersionFooter.jsx`.
+- Badges collection (vert) / souhaits (doré)
 
-## Variables d'environnement (serveur)
+## Suivi / travaux restants connus
 
-Voir `server/.env.example` :
-
-```
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
-ENCRYPTION_KEY=           # 32 caractères, AES-256
-CLIENT_ORIGIN=            # URL du frontend (CORS)
-PORT=3001
-GOOGLE_BOOKS_API_KEY=     # Fallback si pas de clé en base
-```
-
-## Routes API — champs patchables
-
-`PATCH /api/books/:id` accepte : `read_status`, `title`, `series`, `tome`, `author`, `illustrator`, `publisher`, `year`, `genre`, `ean`, `cover_url`, `synopsis`.
+- Ajouter les fichiers `.ttf` DM Serif Display / DM Sans au bundle et réactiver `UIAppFonts` dans `project.yml`
+- Icône d'app réelle (`Assets.xcassets/AppIcon.appiconset` est un jeu de données vide pour l'instant)
+- Cache disque des couvertures (actuellement re-téléchargées à chaque affichage)
+- Import ponctuel de l'ancienne collection Supabase (export JSON → un fichier par album dans `BDme/Books/`)
+- Déploiement du `server/` réduit sur le VPS OVH existant (remplace l'ancien serveur complet)
+- Tests réels multi-appareils iCloud (édition simultanée, résolution de conflits) — le simulateur iOS gère mal iCloud Drive, nécessite des devices physiques
 
 ## Conventions
 
-- Pas d'auto-inscription : les comptes sont créés manuellement par un admin via Supabase Auth.
-- Les rôles sont gérés dans `bdme_users.role`, pas dans Supabase Auth metadata.
-- Les textes de l'interface sont en **français**.
-- Pas de framework CSS externe — tout est du CSS custom dans `global.css`.
-- Le frontend communique exclusivement avec le backend Express (pas d'appels directs à Supabase depuis le client, sauf pour l'auth).
-- `bdme_api_keys.encrypted_login` est `null` pour Google Books (pas de login, seulement une clé API).
+- Textes de l'interface en **français**.
+- Pas de multi-utilisateur, pas de rôles : usage personnel mono-compte iCloud.
+- L'app ne parle au backend `server/` que pour la recherche BDGest — tout le reste (Google Books, Open Library, stockage) est local/direct.

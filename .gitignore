@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+.env
+
+# Xcode
+ios/*.xcodeproj/
+ios/DerivedData/
+ios/build/
+*.xcuserstate
+xcuserdata/
