@@ -8,3 +8,5 @@ ios/DerivedData/
 ios/build/
 *.xcuserstate
 xcuserdata/
+ios/.appstoreconnect_key/
+ios/build/

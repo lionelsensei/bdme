@@ -39,6 +39,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: "BDme utilise l'appareil photo pour scanner le code-barres (EAN) de vos albums."
+        ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: BDme/Resources/BDme.entitlements
       properties:
