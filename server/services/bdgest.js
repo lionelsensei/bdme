@@ -18,16 +18,56 @@ let _expiry  = 0;
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+// ── Circuit breaker ─────────────────────────────────────────────
+// Un blocage anti-bot/TLS de bedetheque.com (Cloudflare) ne se répare pas
+// en insistant — retenter dans la foulée ne fait qu'aggraver le blocage.
+// Une fois le circuit ouvert, on refuse immédiatement les nouvelles
+// requêtes (sans toucher le réseau) pendant un temps de repos croissant,
+// jusqu'à ce qu'une requête réussisse à nouveau.
+const CIRCUIT_BASE_COOLDOWN_MS = 5 * 60 * 1000;      // 5 min
+const CIRCUIT_MAX_COOLDOWN_MS  = 2 * 60 * 60 * 1000; // 2h
+
+let _circuitOpenUntil   = 0;
+let _consecutiveTrips   = 0;
+
+function isCircuitOpen() {
+  return Date.now() < _circuitOpenUntil;
+}
+
+function circuitRemainingMinutes() {
+  return Math.max(1, Math.ceil((_circuitOpenUntil - Date.now()) / 60000));
+}
+
+function tripCircuit() {
+  _consecutiveTrips++;
+  const cooldown = Math.min(CIRCUIT_BASE_COOLDOWN_MS * Math.pow(2, _consecutiveTrips - 1), CIRCUIT_MAX_COOLDOWN_MS);
+  _circuitOpenUntil = Date.now() + cooldown;
+  console.warn(`[BDGest] Circuit ouvert ${Math.round(cooldown / 60000)} min (échec #${_consecutiveTrips})`);
+}
+
+function resetCircuit() {
+  if (_consecutiveTrips > 0) console.log('[BDGest] Circuit refermé — connexion rétablie');
+  _consecutiveTrips = 0;
+  _circuitOpenUntil = 0;
+}
+
 // ── Retry avec backoff exponentiel ─────────────────────────────
 // Une requête bedetheque peut échouer ponctuellement (timeout, session
-// expirée en cours de route, anti-bot temporaire) : on retente avant
-// d'abandonner, en invalidant la session entre chaque tentative pour
-// forcer une reconnexion propre.
+// expirée en cours de route) : on retente avant d'abandonner, en
+// invalidant la session entre chaque tentative pour forcer une
+// reconnexion propre. Si le circuit est ouvert (blocage détecté), on
+// n'insiste pas du tout.
 async function withRetry(fn, { attempts = 3, baseDelayMs = 800 } = {}) {
+  if (isCircuitOpen()) {
+    throw new Error(`Bedetheque temporairement indisponible (blocage réseau détecté) — réessayez dans ~${circuitRemainingMinutes()} min.`);
+  }
+
   let lastErr;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await fn();
+      const result = await fn();
+      resetCircuit();
+      return result;
     } catch (err) {
       lastErr = err;
       console.warn(`[BDGest] Tentative ${i + 1}/${attempts} échouée: ${err.message}`);
@@ -37,6 +77,7 @@ async function withRetry(fn, { attempts = 3, baseDelayMs = 800 } = {}) {
       }
     }
   }
+  tripCircuit();
   throw lastErr;
 }
 
