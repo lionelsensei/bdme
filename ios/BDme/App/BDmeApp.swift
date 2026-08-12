@@ -5,6 +5,7 @@ struct BDmeApp: App {
     @StateObject private var library = LibraryStore()
 
     init() {
+        SecretsBootstrap.seedKeychainIfNeeded()
         BackupManager.shared.rotateBackupsAtLaunch()
     }
 

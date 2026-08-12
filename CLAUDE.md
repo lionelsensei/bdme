@@ -138,6 +138,20 @@ Le build apparaît ensuite automatiquement dans le groupe TestFlight interne "BD
 
 Clé API App Store Connect : `ios/.appstoreconnect_key/AuthKey_NLFDK62899.p8` (gitignorée, rôle Admin, Key ID `NLFDK62899`, Issuer ID `a968ca85-6ead-4737-b01b-c6b81ba9b847`). App Store Connect App ID `6800276979`, bundle ID enregistré `Q8UMUHD7XK` (capacité iCloud activée dessus), Team ID `K52D9XXV9P`.
 
+### Secrets pré-intégrés (`ios/BDme/Secrets.swift`)
+
+Fichier gitignoré (jamais poussé sur GitHub) — pré-remplit le Keychain au premier lancement (`SecretsBootstrap.seedKeychainIfNeeded()`, appelé dans `BDmeApp.init()`) pour que l'app soit utilisable dès l'installation, sans repasser par Réglages. N'écrase jamais une valeur déjà modifiée manuellement. Acceptable ici : usage strictement personnel, jamais distribué au-delà de mon propre TestFlight interne.
+
+À recréer si le projet est reconstruit ailleurs (structure) :
+```swift
+enum Secrets {
+    static let bdgestProxyURL = "https://bdme.liooonel.fr"
+    static let bdgestProxyURLSecondary = "https://bdme2.liooonel.fr"
+    static let bdgestProxyToken = "<PROXY_TOKEN du .env serveur>"
+    static let googleBooksApiKey = "<clé Google Books>"
+}
+```
+
 ## Suivi / travaux restants connus
 
 - Ajouter les fichiers `.ttf` DM Serif Display / DM Sans au bundle et réactiver `UIAppFonts` dans `project.yml`

@@ -10,3 +10,4 @@ ios/build/
 xcuserdata/
 ios/.appstoreconnect_key/
 ios/build/
+ios/BDme/Secrets.swift
