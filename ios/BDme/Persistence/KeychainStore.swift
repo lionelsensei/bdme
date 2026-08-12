@@ -11,6 +11,9 @@ final class KeychainStore {
         case googleBooksApiKey = "com.lionelarbey.bdme.googleBooksApiKey"
         case bdgestProxyURL = "com.lionelarbey.bdme.bdgestProxyURL"
         case bdgestProxyToken = "com.lionelarbey.bdme.bdgestProxyToken"
+        /// URL de repli, essayée si l'URL principale échoue (ex: blocage
+        /// anti-bot temporaire sur un des deux VPS).
+        case bdgestProxyURLSecondary = "com.lionelarbey.bdme.bdgestProxyURLSecondary"
     }
 
     func read(key: Key) -> String? {

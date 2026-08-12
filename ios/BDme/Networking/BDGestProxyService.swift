@@ -11,88 +11,117 @@ enum BDGestProxyService {
     private static var baseURL: String? {
         KeychainStore.shared.read(key: .bdgestProxyURL)
     }
+    private static var secondaryBaseURL: String? {
+        KeychainStore.shared.read(key: .bdgestProxyURLSecondary)
+    }
     private static var token: String? {
         KeychainStore.shared.read(key: .bdgestProxyToken)
     }
 
     static var isConfigured: Bool { baseURL != nil }
 
+    /// URL principale, puis URL de repli si configurée — essayées dans
+    /// l'ordre. Un VPS bloqué (anti-bot) ne rend pas la recherche
+    /// indisponible si l'autre répond.
+    private static func candidateBaseURLs() -> [String] {
+        [baseURL, secondaryBaseURL].compactMap { $0 }.filter { !$0.isEmpty }
+    }
+
     static func search(query: String, startIndex: Int) async throws -> SearchPageResult {
         let cacheKey = "bdgest|\(query.lowercased())|\(startIndex)"
-        guard let base = baseURL, var components = URLComponents(string: "\(base)/api/search") else {
+        let bases = candidateBaseURLs()
+        guard !bases.isEmpty else {
             throw SearchError.network("Proxy BDGest non configuré (Réglages).")
         }
-        components.queryItems = [
-            .init(name: "q", value: query),
-            .init(name: "startIndex", value: "\(startIndex)"),
-            .init(name: "source", value: "bdgest")
-        ]
-        let url = components.url!
-        do {
-            let page = try await BDGestRequestQueue.shared.run {
-                try await withRetry {
-                    let (data, _) = try await authorizedData(from: url)
-                    let decoded = try JSONDecoder().decode(ProxySearchResponse.self, from: data)
-                    return SearchPageResult(results: decoded.results.map(\.asSearchResult), totalItems: decoded.totalItems)
+
+        var lastError: Error = SearchError.network("Proxy BDGest non configuré (Réglages).")
+        for base in bases {
+            guard var components = URLComponents(string: "\(base)/api/search") else { continue }
+            components.queryItems = [
+                .init(name: "q", value: query),
+                .init(name: "startIndex", value: "\(startIndex)"),
+                .init(name: "source", value: "bdgest")
+            ]
+            guard let url = components.url else { continue }
+            do {
+                let page = try await BDGestRequestQueue.shared.run {
+                    try await withRetry {
+                        let (data, _) = try await authorizedData(from: url)
+                        let decoded = try JSONDecoder().decode(ProxySearchResponse.self, from: data)
+                        return SearchPageResult(results: decoded.results.map(\.asSearchResult), totalItems: decoded.totalItems)
+                    }
                 }
+                await OfflineCache.searchResults.set(page.results, for: cacheKey)
+                return page
+            } catch {
+                lastError = error
             }
-            await OfflineCache.searchResults.set(page.results, for: cacheKey)
-            return page
-        } catch {
-            if let cached = await OfflineCache.searchResults.get(cacheKey) {
-                return SearchPageResult(results: cached, totalItems: cached.count)
-            }
-            throw error
         }
+        if let cached = await OfflineCache.searchResults.get(cacheKey) {
+            return SearchPageResult(results: cached, totalItems: cached.count)
+        }
+        throw lastError
     }
 
     static func fetchDetails(bdgestId: String) async throws -> SearchResult {
-        guard let base = baseURL,
-              let encoded = bdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "\(base)/api/search/album/\(encoded)") else {
+        let bases = candidateBaseURLs()
+        guard !bases.isEmpty else {
             throw SearchError.network("Proxy BDGest non configuré (Réglages).")
         }
-        do {
-            let result = try await BDGestRequestQueue.shared.run {
-                try await withRetry {
-                    let (data, _) = try await authorizedData(from: url)
-                    let decoded = try JSONDecoder().decode(ProxyAlbumDetails.self, from: data)
-                    return decoded.asSearchResult(bdgestId: bdgestId)
+
+        var lastError: Error = SearchError.network("Proxy BDGest non configuré (Réglages).")
+        for base in bases {
+            guard let encoded = bdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "\(base)/api/search/album/\(encoded)") else { continue }
+            do {
+                let result = try await BDGestRequestQueue.shared.run {
+                    try await withRetry {
+                        let (data, _) = try await authorizedData(from: url)
+                        let decoded = try JSONDecoder().decode(ProxyAlbumDetails.self, from: data)
+                        return decoded.asSearchResult(bdgestId: bdgestId)
+                    }
                 }
+                await OfflineCache.albumDetails.set(result, for: bdgestId)
+                return result
+            } catch {
+                lastError = error
             }
-            await OfflineCache.albumDetails.set(result, for: bdgestId)
-            return result
-        } catch {
-            if let cached = await OfflineCache.albumDetails.get(bdgestId) {
-                return cached
-            }
-            throw error
         }
+        if let cached = await OfflineCache.albumDetails.get(bdgestId) {
+            return cached
+        }
+        throw lastError
     }
 
     /// Liste tous les tomes d'une série (pour détecter ceux qui manquent).
     static func fetchSeriesTomes(seriesBdgestId: String) async throws -> [SeriesTome] {
-        guard let base = baseURL,
-              let encoded = seriesBdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "\(base)/api/search/series/\(encoded)") else {
+        let bases = candidateBaseURLs()
+        guard !bases.isEmpty else {
             throw SearchError.network("Proxy BDGest non configuré (Réglages).")
         }
-        do {
-            let tomes = try await BDGestRequestQueue.shared.run {
-                try await withRetry {
-                    let (data, _) = try await authorizedData(from: url)
-                    let decoded = try JSONDecoder().decode(ProxySeriesResponse.self, from: data)
-                    return decoded.tomes.map(\.asSeriesTome)
+
+        var lastError: Error = SearchError.network("Proxy BDGest non configuré (Réglages).")
+        for base in bases {
+            guard let encoded = seriesBdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "\(base)/api/search/series/\(encoded)") else { continue }
+            do {
+                let tomes = try await BDGestRequestQueue.shared.run {
+                    try await withRetry {
+                        let (data, _) = try await authorizedData(from: url)
+                        let decoded = try JSONDecoder().decode(ProxySeriesResponse.self, from: data)
+                        return decoded.tomes.map(\.asSeriesTome)
+                    }
                 }
+                await OfflineCache.seriesTomes.set(tomes, for: seriesBdgestId)
+                return tomes
+            } catch {
+                lastError = error
             }
-            await OfflineCache.seriesTomes.set(tomes, for: seriesBdgestId)
-            return tomes
-        } catch {
-            if let cached = await OfflineCache.seriesTomes.get(seriesBdgestId) {
-                return cached
-            }
-            throw error
         }
+        if let cached = await OfflineCache.seriesTomes.get(seriesBdgestId) {
+            return cached
+        }
+        throw lastError
     }
 
     private static func authorizedData(from url: URL) async throws -> (Data, URLResponse) {

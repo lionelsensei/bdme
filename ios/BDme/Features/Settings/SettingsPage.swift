@@ -7,6 +7,7 @@ struct SettingsPage: View {
 
     @State private var googleBooksKey = KeychainStore.shared.read(key: .googleBooksApiKey) ?? ""
     @State private var bdgestProxyURL = KeychainStore.shared.read(key: .bdgestProxyURL) ?? "https://bdme.liooonel.fr"
+    @State private var bdgestProxyURLSecondary = KeychainStore.shared.read(key: .bdgestProxyURLSecondary) ?? "https://bdme2.liooonel.fr"
     @State private var bdgestProxyToken = KeychainStore.shared.read(key: .bdgestProxyToken) ?? ""
     @State private var saved = false
     @State private var cacheEntryCount: (albums: Int, searches: Int, series: Int)?
@@ -33,17 +34,21 @@ struct SettingsPage: View {
                 }
 
                 Section("Proxy de recherche BDGest") {
-                    TextField("URL du serveur (https://…)", text: $bdgestProxyURL)
+                    TextField("URL principale (https://…)", text: $bdgestProxyURL)
+                        .autocapitalization(.none)
+                        .keyboardType(.URL)
+                    TextField("URL de repli (optionnel)", text: $bdgestProxyURLSecondary)
                         .autocapitalization(.none)
                         .keyboardType(.URL)
                     SecureField("Jeton d'accès", text: $bdgestProxyToken)
-                    Text("Le scraping bedetheque.com et les identifiants BDGest restent hébergés côté serveur — l'app n'appelle que ce proxy.")
+                    Text("Si l'URL principale échoue (blocage anti-bot temporaire), l'app essaie automatiquement l'URL de repli avant d'abandonner. Le scraping bedetheque.com et les identifiants BDGest restent hébergés côté serveur — l'app n'appelle que ces proxys.")
                         .font(BDTheme.sans(12)).foregroundColor(BDTheme.text3)
                 }
 
                 Button("Enregistrer") {
                     KeychainStore.shared.write(googleBooksKey, key: .googleBooksApiKey)
                     KeychainStore.shared.write(bdgestProxyURL, key: .bdgestProxyURL)
+                    KeychainStore.shared.write(bdgestProxyURLSecondary, key: .bdgestProxyURLSecondary)
                     KeychainStore.shared.write(bdgestProxyToken, key: .bdgestProxyToken)
                     saved = true
                 }

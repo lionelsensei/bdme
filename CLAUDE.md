@@ -66,6 +66,7 @@ Le projet Xcode (`BDme.xcodeproj`) est généré (donc gitignoré) — ne pas l'
 
 - **Enrichissement automatique** (`BookEnricher.swift`) : la recherche en liste ne renvoie pas auteur/dessinateur/résumé (trop coûteux à scraper par résultat côté serveur) — seule la fiche détaillée par album les fournit. `LibraryStore.addBookEnriching()` lance cet enrichissement en tâche de fond juste après l'ajout, sans attendre que l'utilisateur ouvre le détail. `BookDetailModal` garde un filet de sécurité (à l'ouverture) + un bouton "Rafraîchir les infos" manuel si la fiche reste incomplète.
 - **Retry + sérialisation** (`RetrySupport.swift`, et `withRetry`/`invalidateSession` côté `server/services/bdgest.js`) : chaque appel BDGest (app et serveur) retente avec backoff exponentiel avant d'abandonner ; `BDGestRequestQueue` sérialise les appels sortants de l'app pour éviter les rafales parallèles vers bedetheque.com (risque de blocage anti-bot).
+- **Circuit breaker** (côté serveur, `server/services/bdgest.js`) : après 3 échecs consécutifs (blocage anti-bot/TLS détecté), le circuit s'ouvre et refuse les requêtes suivantes immédiatement (sans toucher le réseau) pendant un temps de repos croissant (5 min → 2h), pour ne pas aggraver un blocage en cours. Se referme dès qu'une requête réussit.
 - **Cache hors-ligne** (`LocalCache.swift`, `OfflineCache`) : chaque recherche et fiche album réussie est mise en cache localement (dossier `Caches/`, hors iCloud — données dérivées, pas de sauvegarde nécessaire). En cas d'échec réseau, l'app retombe sur la dernière version connue. Visible/vidable depuis Réglages.
 - **Tomes manquants d'une série** : `getSeriesTomes` (serveur) scrape la page série BDGest (`__10000.html`, liste tous les tomes sur une page) ; `BookDetailModal` compare avec la bibliothèque et propose l'ajout rapide des tomes absents.
 
@@ -81,6 +82,23 @@ Toute la logique multi-utilisateur, Supabase, et les routes `books`/`wishlist`/`
 | `GET /api/search/series/:id` | Tomes d'une série BDGest (`id` = `bdg:<url série>`) — détection de tomes manquants |
 
 Auth : un simple jeton statique (`PROXY_TOKEN` en `.env`), envoyé par l'app en `Authorization: Bearer <token>` — configuré dans Réglages côté app. Pas de Supabase, pas de rôles.
+
+### Deux instances (repli anti-bot)
+
+Deux VPS distincts hébergent chacun une copie indépendante de `server/`, avec le même `PROXY_TOKEN` pour simplifier la config app :
+
+| Instance | Domaine | Serveur web | Chemin |
+|---|---|---|---|
+| Principale | `bdme.liooonel.fr` | nginx (proxy_pass `/api/`) | `/var/www/bdme` (process pm2 `bdme-api`) |
+| Repli | `bdme2.liooonel.fr` | Apache (`mod_proxy`, `ProxyPass /api/`) | `/var/www/bdme2` (process pm2 `bdme2-api`) |
+
+L'app (`BDGestProxyService.candidateBaseURLs()`) essaie l'URL principale (Réglages) puis l'URL de repli en cas d'échec, avant de retomber sur le cache hors-ligne. Chaque instance a son propre circuit breaker indépendant (voir ci-dessous) — un blocage sur l'une n'affecte pas l'autre. bedetheque.com étant derrière Cloudflare, une IP de VPS "neuve" peut être traitée avec méfiance dès le départ (challenge JS/403) indépendamment de tout usage réel — le repli n'est donc pas une garantie absolue, juste une deuxième chance.
+
+Pour redéployer sur l'instance de repli après un `git push` :
+```bash
+ssh ubuntu@<ip-vps2>
+cd /var/www/bdme2 && git pull origin main && cd server && npm install --production && pm2 restart bdme2-api
+```
 
 Identifiants bedetheque.com : variables d'env `BDGEST_LOGIN` / `BDGEST_PASSWORD` (voir `server/.env.example`), plus de stockage chiffré en base — un seul utilisateur, un seul VPS.
 
