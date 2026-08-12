@@ -1,7 +1,7 @@
 import Foundation
 
 /// Résultat de recherche générique, quelle que soit la source.
-struct SearchResult: Identifiable, Equatable {
+struct SearchResult: Identifiable, Equatable, Codable {
     var id: String { bdgestId }
     let bdgestId: String
     var title: String
@@ -15,6 +15,9 @@ struct SearchResult: Identifiable, Equatable {
     var ean: String?
     var coverURL: String?
     var synopsis: String?
+    /// "bdg:<url>" de la page série BDGest — permet de lister les tomes
+    /// manquants. nil pour les sources sans page série (Google Books, etc.)
+    var seriesBdgestId: String? = nil
 }
 
 struct SearchPageResult {

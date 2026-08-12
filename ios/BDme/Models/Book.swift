@@ -22,6 +22,8 @@ struct Book: Identifiable, Codable, Equatable {
     var readStatus: ReadStatus
     /// Collections perso auxquelles cet album appartient (0, 1 ou plusieurs).
     var collectionIds: [UUID]
+    /// "bdg:<url>" de la page série BDGest, pour lister les tomes manquants.
+    var seriesBdgestId: String?
     var addedAt: Date
     var updatedAt: Date
 
@@ -41,6 +43,7 @@ struct Book: Identifiable, Codable, Equatable {
         synopsis: String? = nil,
         readStatus: ReadStatus = .unread,
         collectionIds: [UUID] = [],
+        seriesBdgestId: String? = nil,
         addedAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -59,6 +62,7 @@ struct Book: Identifiable, Codable, Equatable {
         self.synopsis = synopsis
         self.readStatus = readStatus
         self.collectionIds = collectionIds
+        self.seriesBdgestId = seriesBdgestId
         self.addedAt = addedAt
         self.updatedAt = updatedAt
     }
@@ -82,6 +86,7 @@ struct Book: Identifiable, Codable, Equatable {
         synopsis = try c.decodeIfPresent(String.self, forKey: .synopsis)
         readStatus = try c.decode(ReadStatus.self, forKey: .readStatus)
         collectionIds = try c.decodeIfPresent([UUID].self, forKey: .collectionIds) ?? []
+        seriesBdgestId = try c.decodeIfPresent(String.self, forKey: .seriesBdgestId)
         addedAt = try c.decode(Date.self, forKey: .addedAt)
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
     }

@@ -7,6 +7,15 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var collections: [BookCollection] = []
     @Published var iCloudAvailable: Bool = ICloudContainer.documentsURL() != nil
     @Published var lastError: String?
+    /// Petit historique consultable dans Réglages — plus discret qu'une
+    /// alerte à chaque échec, mais pas silencieux comme avant.
+    @Published private(set) var recentErrors: [(date: Date, message: String)] = []
+
+    private func recordError(_ message: String) {
+        lastError = message
+        recentErrors.insert((date: Date(), message: message), at: 0)
+        if recentErrors.count > 20 { recentErrors.removeLast() }
+    }
 
     private lazy var bookRepo = FileRepository<Book>(folderProvider: { ICloudContainer.booksURL })
     private lazy var wishlistRepo = FileRepository<WishlistItem>(folderProvider: { ICloudContainer.wishlistURL })
@@ -22,17 +31,17 @@ final class LibraryStore: ObservableObject {
         do {
             books = try bookRepo.loadAll().sorted { $0.updatedAt > $1.updatedAt }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
         do {
             wishlist = try wishlistRepo.loadAll().sorted { $0.updatedAt > $1.updatedAt }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
         do {
             collections = try collectionRepo.loadAll().sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -43,8 +52,13 @@ final class LibraryStore: ObservableObject {
     func addBookEnriching(_ book: Book) {
         addBook(book)
         Task {
-            if let enriched = await BookEnricher.enrichIfNeeded(book) {
+            do {
+                let enriched = try await BookEnricher.enrich(book)
                 updateBook(enriched)
+            } catch is BookEnricher.Skip {
+                // Rien à enrichir, pas une erreur.
+            } catch {
+                recordError("Enrichissement de « \(book.title) » : \(error.localizedDescription)")
             }
         }
     }
@@ -54,7 +68,7 @@ final class LibraryStore: ObservableObject {
             try bookRepo.save(book)
             books.append(book)
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -67,7 +81,7 @@ final class LibraryStore: ObservableObject {
                 books[idx] = updated
             }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -76,7 +90,7 @@ final class LibraryStore: ObservableObject {
             try bookRepo.delete(id: book.id)
             books.removeAll { $0.id == book.id }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -87,7 +101,7 @@ final class LibraryStore: ObservableObject {
             try wishlistRepo.save(item)
             wishlist.append(item)
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -96,7 +110,7 @@ final class LibraryStore: ObservableObject {
             try wishlistRepo.delete(id: item.id)
             wishlist.removeAll { $0.id == item.id }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -114,7 +128,7 @@ final class LibraryStore: ObservableObject {
             collections.append(collection)
             collections.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
         return collection
     }
@@ -130,7 +144,7 @@ final class LibraryStore: ObservableObject {
             }
             collections.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 
@@ -145,7 +159,7 @@ final class LibraryStore: ObservableObject {
                 updateBook(updated)
             }
         } catch {
-            lastError = error.localizedDescription
+            recordError(error.localizedDescription)
         }
     }
 

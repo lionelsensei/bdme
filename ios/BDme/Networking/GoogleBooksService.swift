@@ -10,6 +10,7 @@ enum GoogleBooksService {
     }
 
     static func search(query: String, startIndex: Int) async throws -> SearchPageResult {
+        let cacheKey = "googlebooks|\(query.lowercased())|\(startIndex)"
         var components = URLComponents(string: "\(base)/volumes")!
         var items: [URLQueryItem] = [
             .init(name: "q", value: query),
@@ -19,12 +20,18 @@ enum GoogleBooksService {
         if let key = apiKey() { items.append(.init(name: "key", value: key)) }
         components.queryItems = items
 
-        let (data, _) = try await URLSession.shared.data(from: components.url!)
-        let decoded = try JSONDecoder().decode(GBVolumesResponse.self, from: data)
-        return SearchPageResult(
-            results: (decoded.items ?? []).map(map(item:)),
-            totalItems: decoded.totalItems ?? 0
-        )
+        do {
+            let (data, _) = try await URLSession.shared.data(from: components.url!)
+            let decoded = try JSONDecoder().decode(GBVolumesResponse.self, from: data)
+            let results = (decoded.items ?? []).map(map(item:))
+            await OfflineCache.searchResults.set(results, for: cacheKey)
+            return SearchPageResult(results: results, totalItems: decoded.totalItems ?? 0)
+        } catch {
+            if let cached = await OfflineCache.searchResults.get(cacheKey) {
+                return SearchPageResult(results: cached, totalItems: cached.count)
+            }
+            throw error
+        }
     }
 
     static func searchByISBN(_ ean: String) async throws -> [SearchResult] {
@@ -43,9 +50,18 @@ enum GoogleBooksService {
         if let key = apiKey() {
             components.queryItems = [.init(name: "key", value: key)]
         }
-        let (data, _) = try await URLSession.shared.data(from: components.url!)
-        let item = try JSONDecoder().decode(GBVolume.self, from: data)
-        return map(item: item)
+        do {
+            let (data, _) = try await URLSession.shared.data(from: components.url!)
+            let item = try JSONDecoder().decode(GBVolume.self, from: data)
+            let result = map(item: item)
+            await OfflineCache.albumDetails.set(result, for: volumeId)
+            return result
+        } catch {
+            if let cached = await OfflineCache.albumDetails.get(volumeId) {
+                return cached
+            }
+            throw error
+        }
     }
 
     private static func map(item: GBVolume) -> SearchResult {

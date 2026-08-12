@@ -62,6 +62,13 @@ Le projet Xcode (`BDme.xcodeproj`) est généré (donc gitignoré) — ne pas l'
 
 `bdgestId` : volumeId Google Books, ou `"bdg:<url bedetheque complète>"` pour un résultat BDGest (même convention qu'avant).
 
+### Fiabilité et hors-ligne
+
+- **Enrichissement automatique** (`BookEnricher.swift`) : la recherche en liste ne renvoie pas auteur/dessinateur/résumé (trop coûteux à scraper par résultat côté serveur) — seule la fiche détaillée par album les fournit. `LibraryStore.addBookEnriching()` lance cet enrichissement en tâche de fond juste après l'ajout, sans attendre que l'utilisateur ouvre le détail. `BookDetailModal` garde un filet de sécurité (à l'ouverture) + un bouton "Rafraîchir les infos" manuel si la fiche reste incomplète.
+- **Retry + sérialisation** (`RetrySupport.swift`, et `withRetry`/`invalidateSession` côté `server/services/bdgest.js`) : chaque appel BDGest (app et serveur) retente avec backoff exponentiel avant d'abandonner ; `BDGestRequestQueue` sérialise les appels sortants de l'app pour éviter les rafales parallèles vers bedetheque.com (risque de blocage anti-bot).
+- **Cache hors-ligne** (`LocalCache.swift`, `OfflineCache`) : chaque recherche et fiche album réussie est mise en cache localement (dossier `Caches/`, hors iCloud — données dérivées, pas de sauvegarde nécessaire). En cas d'échec réseau, l'app retombe sur la dernière version connue. Visible/vidable depuis Réglages.
+- **Tomes manquants d'une série** : `getSeriesTomes` (serveur) scrape la page série BDGest (`__10000.html`, liste tous les tomes sur une page) ; `BookDetailModal` compare avec la bibliothèque et propose l'ajout rapide des tomes absents.
+
 ## Backend — `server/` (proxy BDGest uniquement)
 
 Toute la logique multi-utilisateur, Supabase, et les routes `books`/`wishlist`/`users`/`api-keys` ont été supprimées avec la v1 web. Le serveur ne fait plus que scraper bedetheque.com pour le compte de l'app iOS personnelle.
@@ -71,12 +78,13 @@ Toute la logique multi-utilisateur, Supabase, et les routes `books`/`wishlist`/`
 | `GET /health` | Health check |
 | `GET /api/search?q=&startIndex=` | Recherche BDGest (scraping) |
 | `GET /api/search/album/:id` | Fiche détaillée BDGest (`id` = `bdg:<url>`) |
+| `GET /api/search/series/:id` | Tomes d'une série BDGest (`id` = `bdg:<url série>`) — détection de tomes manquants |
 
 Auth : un simple jeton statique (`PROXY_TOKEN` en `.env`), envoyé par l'app en `Authorization: Bearer <token>` — configuré dans Réglages côté app. Pas de Supabase, pas de rôles.
 
 Identifiants bedetheque.com : variables d'env `BDGEST_LOGIN` / `BDGEST_PASSWORD` (voir `server/.env.example`), plus de stockage chiffré en base — un seul utilisateur, un seul VPS.
 
-`server/services/bdgest.js` (inchangé dans sa logique) : login via `bedetheque.com/connect/login` (CSRF + pseudo + password), session cookie cachée 55 min, parsing via attributs Schema.org (`itemprop`).
+`server/services/bdgest.js` : login via `bedetheque.com/connect/login` (CSRF + pseudo + password), session cookie cachée 55 min, parsing via attributs Schema.org (`itemprop`), retry avec backoff exponentiel (`withRetry`) sur chaque appel réseau.
 
 ### Pourquoi garder ce backend
 

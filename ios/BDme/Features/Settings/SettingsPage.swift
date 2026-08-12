@@ -9,6 +9,7 @@ struct SettingsPage: View {
     @State private var bdgestProxyURL = KeychainStore.shared.read(key: .bdgestProxyURL) ?? "https://bdme.liooonel.fr"
     @State private var bdgestProxyToken = KeychainStore.shared.read(key: .bdgestProxyToken) ?? ""
     @State private var saved = false
+    @State private var cacheEntryCount: (albums: Int, searches: Int, series: Int)?
 
     var body: some View {
         NavigationStack {
@@ -50,6 +51,39 @@ struct SettingsPage: View {
                     Text("Enregistré.").font(BDTheme.sans(12)).foregroundColor(BDTheme.green)
                 }
 
+                Section("Cache hors-ligne") {
+                    if let cacheEntryCount {
+                        Text("\(cacheEntryCount.albums) fiches album · \(cacheEntryCount.searches) recherches · \(cacheEntryCount.series) séries en cache local")
+                            .font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+                    } else {
+                        Text("Chargement…").font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+                    }
+                    Text("Chaque recherche et fiche déjà consultée reste disponible hors connexion.")
+                        .font(BDTheme.sans(12)).foregroundColor(BDTheme.text3)
+                    Button("Vider le cache") {
+                        Task {
+                            await OfflineCache.albumDetails.clear()
+                            await OfflineCache.searchResults.clear()
+                            await OfflineCache.seriesTomes.clear()
+                            await loadCacheStats()
+                        }
+                    }
+                    .foregroundColor(BDTheme.red)
+                }
+
+                if !library.recentErrors.isEmpty {
+                    Section("Erreurs récentes") {
+                        ForEach(library.recentErrors.indices, id: \.self) { idx in
+                            let entry = library.recentErrors[idx]
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.message).font(BDTheme.sans(12)).foregroundColor(BDTheme.text2)
+                                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(BDTheme.sans(10.5)).foregroundColor(BDTheme.text3)
+                            }
+                        }
+                    }
+                }
+
                 Section {
                     HStack {
                         Text("Version")
@@ -60,7 +94,16 @@ struct SettingsPage: View {
                 }
             }
             .navigationTitle("Réglages")
+            .task { await loadCacheStats() }
         }
+    }
+
+    private func loadCacheStats() async {
+        cacheEntryCount = (
+            albums: await OfflineCache.albumDetails.count(),
+            searches: await OfflineCache.searchResults.count(),
+            series: await OfflineCache.seriesTomes.count()
+        )
     }
 }
 

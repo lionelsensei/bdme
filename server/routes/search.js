@@ -41,4 +41,22 @@ router.get('/album/:id', async (req, res) => {
   }
 });
 
+// GET /api/search/series/:id  (id = "bdg:<url complète de la série>")
+// Liste tous les tomes d'une série — sert à détecter les tomes manquants.
+router.get('/series/:id', async (req, res) => {
+  const id = req.params.id;
+  if (!id.startsWith('bdg:')) return res.status(400).json({ error: 'Identifiant invalide' });
+
+  const creds = credentials();
+  if (!creds) return res.status(503).json({ error: 'Identifiants BDGest non configurés (.env).' });
+
+  try {
+    const tomes = await bdgest.getSeriesTomes(id.slice(4), creds);
+    if (!tomes) return res.status(404).json({ error: 'Série introuvable' });
+    res.json({ tomes });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 module.exports = router;
