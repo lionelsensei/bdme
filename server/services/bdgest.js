@@ -164,6 +164,56 @@ async function getSession(login, password) {
   }
 }
 
+// ── Recherche par nom de série (pages publiques par lettre) ────
+// /search/albums (formulaire de recherche) est protégé par un filtrage
+// anti-bot qui va au-delà du jeton CSRF : mêmes paramètres, même session,
+// un navigateur réel obtient les résultats mais FlareSolverr (VPS) reçoit
+// systématiquement le formulaire vide — vraisemblablement une histoire de
+// réputation d'IP/empreinte de navigateur sur cet endpoint précis (constaté
+// empiriquement, cf. discussion). En revanche les pages publiques classiques
+// (fiche album, page série, listing par lettre) fonctionnent normalement
+// via FlareSolverr — c'est d'ailleurs l'approche du scraper de référence
+// github.com/givka/bedetheque-scraper, qui ne passe jamais par /search.
+// On reproduit donc la recherche via les pages "bandes_dessinees_<LETTRE>.html"
+// (liste exhaustive des séries commençant par une lettre, page publique),
+// mises en cache longtemps (24h — le catalogue change rarement), puis on
+// filtre côté serveur. Les résultats sont donc des séries, pas des albums
+// individuels — l'app liste ensuite les tomes via /api/search/series/:id.
+const SERIES_LETTER_CACHE_TTL = 24 * 60 * 60;
+
+function letterForQuery(query) {
+  const stripped = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const c = stripped.trim().charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : '0';
+}
+
+function normalizeForMatch(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+async function fetchSeriesForLetter(letter, session) {
+  const cacheKey = `bdg:letter:${letter}`;
+  const cached   = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const html = await fetchPage(`${BASE}/bandes_dessinees_${letter}.html`, session);
+  const $ = cheerio.load(html);
+  const series = [];
+  $('.nav-liste li').each((_, el) => {
+    const $el   = $(el);
+    const $link = $el.find('a').first();
+    const href  = $link.attr('href');
+    const name  = $el.find('.libelle').text().trim() || $link.text().trim();
+    if (href && name) {
+      series.push({ name, url: href.startsWith('http') ? href : BASE + href });
+    }
+  });
+
+  cache.set(cacheKey, series, SERIES_LETTER_CACHE_TTL);
+  console.log(`[BDGest] Lettre ${letter} → ${series.length} séries (mis en cache 24h)`);
+  return series;
+}
+
 // ── Parsing des résultats de recherche ────────────────────────
 function parseResults($) {
   const results = [];
@@ -222,39 +272,34 @@ async function search(query, credentials) {
 
   return withRetry(async () => {
     const session = await getSession(credentials.login, credentials.password);
-    const csrf = await fetchSearchCsrfToken(session);
+    const letter = letterForQuery(query);
+    const allSeries = await fetchSeriesForLetter(letter, session);
 
-    // RechSerie seul échoue désormais si la valeur ne correspond pas à
-    // l'ID d'une série existante (résolu normalement via l'autocomplétion
-    // JS du site) — le formulaire est silencieusement rejeté (0 résultat).
-    // RechTitre (recherche plein texte sur le titre) n'a pas cette
-    // contrainte. On envoie les deux : ça couvre à la fois les séries
-    // exactes et les titres/mots partiels, sans jamais déclencher le rejet.
-    const params = new URLSearchParams({
-      RechIdSerie: '', RechIdAuteur: '',
-      RechSerie:   query, RechTitre: query,
-      RechEditeur: '', RechCollection: '',
-      RechStyle:   '', RechAuteur: '', RechISBN: '',
-      RechParution:'', RechOrigine: '', RechLangue: '',
-      RechMotCle:  '', RechDLDeb:   '', RechDLFin:  '',
-      RechCoteMin: '', RechCoteMax: '', RechEO: '0',
-      csrf_token_bel: csrf,
-    });
+    const needle  = normalizeForMatch(query);
+    const matches = allSeries.filter(s => normalizeForMatch(s.name).includes(needle));
 
-    try {
-      const html = await fetchPage(`${BASE}/search/albums?${params.toString()}`, session);
-      const $ = cheerio.load(html);
-      const results = parseResults($);
-      console.log(`[BDGest] Recherche "${query}" → ${results.length} résultats`);
+    const results = matches.slice(0, 50).map(s => ({
+      bdgest_id:   `bdg:${s.url}`,
+      bdgest_url:  s.url,
+      title:       s.name,
+      series:      s.name,
+      tome:        null,
+      author:      null,
+      illustrator: null,
+      publisher:   null,
+      year:        null,
+      genre:       null,
+      ean:         null,
+      cover_url:   null,
+      synopsis:    null,
+      is_series:   true,
+    }));
 
-      const response = { results, totalItems: results.length };
-      cache.set(cacheKey, response);
-      return response;
+    console.log(`[BDGest] Recherche "${query}" (lettre ${letter}) → ${results.length} séries (sur ${allSeries.length})`);
 
-    } catch (err) {
-      console.error('[BDGest] Erreur recherche:', err.message);
-      throw new Error('Erreur lors de la recherche BDGest.');
-    }
+    const response = { results, totalItems: results.length };
+    cache.set(cacheKey, response);
+    return response;
   });
 }
 
