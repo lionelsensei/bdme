@@ -8,6 +8,18 @@ import Foundation
 /// et withRetry (backoff) pour limiter le risque de blocage anti-bot côté
 /// bedetheque.com quand plusieurs enrichissements sont lancés en rafale.
 enum BDGestProxyService {
+    /// `bdgestId`/`seriesBdgestId` sont des URL Bedetheque complètes
+    /// (`bdg:https://…/…`) insérées comme UN SEUL segment de chemin
+    /// (`/api/search/album/:id`). `.urlPathAllowed` laisse passer `/` et
+    /// `:` tels quels, ce qui casse le matching de la route côté serveur
+    /// (elle voit alors plusieurs segments) sans qu'aucune requête
+    /// n'atteigne le serveur — d'où un échec silencieux. On encode donc
+    /// tout sauf les caractères non réservés RFC 3986 pour obtenir un
+    /// segment opaque (`%2F`, `%3A`, …), déjà décodé correctement côté
+    /// serveur (voir aussi `AllowEncodedSlashes NoDecode` sur VPS2).
+    private static let pathSegmentAllowed = CharacterSet(charactersIn:
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
     private static var baseURL: String? {
         KeychainStore.shared.read(key: .bdgestProxyURL)
     }
@@ -71,7 +83,7 @@ enum BDGestProxyService {
 
         var lastError: Error = SearchError.network("Proxy BDGest non configuré (Réglages).")
         for base in bases {
-            guard let encoded = bdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+            guard let encoded = bdgestId.addingPercentEncoding(withAllowedCharacters: pathSegmentAllowed),
                   let url = URL(string: "\(base)/api/search/album/\(encoded)") else { continue }
             do {
                 let result = try await BDGestRequestQueue.shared.run {
@@ -102,7 +114,7 @@ enum BDGestProxyService {
 
         var lastError: Error = SearchError.network("Proxy BDGest non configuré (Réglages).")
         for base in bases {
-            guard let encoded = seriesBdgestId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+            guard let encoded = seriesBdgestId.addingPercentEncoding(withAllowedCharacters: pathSegmentAllowed),
                   let url = URL(string: "\(base)/api/search/series/\(encoded)") else { continue }
             do {
                 let tomes = try await BDGestRequestQueue.shared.run {
@@ -129,8 +141,22 @@ enum BDGestProxyService {
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        return try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        // Le serveur répond {"error": "..."} avec un statut 4xx/5xx en cas
+        // d'échec (identifiants, circuit breaker, Bedetheque indisponible…).
+        // Sans ce contrôle, JSONDecoder échoue en tentant de décoder cette
+        // erreur comme la réponse attendue et masque le vrai message
+        // derrière "The data couldn't be read...".
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let message = (try? JSONDecoder().decode(ProxyErrorResponse.self, from: data))?.error
+            throw SearchError.network(message ?? "Erreur serveur (\(http.statusCode)).")
+        }
+        return (data, response)
     }
+}
+
+private struct ProxyErrorResponse: Decodable {
+    let error: String
 }
 
 /// Un tome référencé sur la page série BDGest.
