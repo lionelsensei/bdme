@@ -18,6 +18,11 @@ struct SearchResult: Identifiable, Equatable, Codable {
     /// "bdg:<url>" de la page série BDGest — permet de lister les tomes
     /// manquants. nil pour les sources sans page série (Google Books, etc.)
     var seriesBdgestId: String? = nil
+    /// true pour un résultat de recherche BDGest représentant une série
+    /// entière (pas un album précis) — /search/albums étant bloqué côté
+    /// serveur, la recherche BDGest liste des séries via les pages
+    /// publiques par lettre ; il faut ensuite choisir le tome.
+    var isSeries: Bool = false
 }
 
 struct SearchPageResult {

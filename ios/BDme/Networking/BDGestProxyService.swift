@@ -200,19 +200,25 @@ private struct ProxyAlbum: Decodable {
     let ean: String?
     let coverUrl: String?
     let synopsis: String?
+    let isSeries: Bool?
 
     enum CodingKeys: String, CodingKey {
         case bdgestId = "bdgest_id"
         case title, series, tome, author, illustrator, publisher, year, genre, ean
         case coverUrl = "cover_url"
         case synopsis
+        case isSeries = "is_series"
     }
 
     var asSearchResult: SearchResult {
         SearchResult(
             bdgestId: bdgestId, title: title, series: series, tome: tome,
             author: author, illustrator: illustrator, publisher: publisher,
-            year: year?.value, genre: genre, ean: ean, coverURL: coverUrl, synopsis: synopsis
+            year: year?.value, genre: genre, ean: ean, coverURL: coverUrl, synopsis: synopsis,
+            // Le résultat EST la série : on réutilise son bdgestId (déjà "bdg:<url série>")
+            // pour lister les tomes ensuite.
+            seriesBdgestId: (isSeries ?? false) ? bdgestId : nil,
+            isSeries: isSeries ?? false
         )
     }
 }

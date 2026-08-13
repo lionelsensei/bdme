@@ -4,6 +4,7 @@ struct SearchResultRow: View {
     let result: SearchResult
     let onAddToCollection: () -> Void
     let onAddToWishlist: () -> Void
+    var onShowTomes: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -30,14 +31,21 @@ struct SearchResultRow: View {
                         .lineLimit(2)
                 }
 
-                HStack(spacing: 6) {
-                    Button("+ Collection", action: onAddToCollection)
+                if result.isSeries {
+                    Button("Voir les tomes", action: { onShowTomes?() })
                         .buttonStyle(.bdPrimary)
-                    Button("+ Souhaits", action: onAddToWishlist)
-                        .buttonStyle(.bdGhost)
+                        .font(BDTheme.sans(12))
+                        .padding(.top, 4)
+                } else {
+                    HStack(spacing: 6) {
+                        Button("+ Collection", action: onAddToCollection)
+                            .buttonStyle(.bdPrimary)
+                        Button("+ Souhaits", action: onAddToWishlist)
+                            .buttonStyle(.bdGhost)
+                    }
+                    .font(BDTheme.sans(12))
+                    .padding(.top, 4)
                 }
-                .font(BDTheme.sans(12))
-                .padding(.top, 4)
             }
         }
         .padding(14)

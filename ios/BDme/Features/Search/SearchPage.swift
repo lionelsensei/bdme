@@ -13,6 +13,7 @@ struct SearchPage: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var pickingCollectionFor: SearchResult?
+    @State private var pickingTomesFor: SearchResult?
 
     var body: some View {
         NavigationStack {
@@ -44,7 +45,8 @@ struct SearchPage: View {
                             SearchResultRow(
                                 result: result,
                                 onAddToCollection: { pickingCollectionFor = result },
-                                onAddToWishlist: { addToWishlist(result) }
+                                onAddToWishlist: { addToWishlist(result) },
+                                onShowTomes: { pickingTomesFor = result }
                             )
                         }
                         if isLoading {
@@ -64,6 +66,13 @@ struct SearchPage: View {
                 CollectionPickerSheet(result: result) { collectionIds in
                     addToCollection(result, collectionIds: collectionIds)
                 }
+            }
+            .sheet(item: $pickingTomesFor) { series in
+                SeriesTomesPickerSheet(
+                    series: series,
+                    onAddToCollection: { pickingCollectionFor = $0 },
+                    onAddToWishlist: { addToWishlist($0) }
+                )
             }
         }
     }
