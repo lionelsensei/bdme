@@ -12,6 +12,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Recherche BDGest** : la recherche était devenue totalement inopérante (blocage anti-bot Cloudflare puis rejet silencieux par le formulaire de recherche du site). Contournement complet :
   - toutes les requêtes vers bedetheque.com passent désormais par FlareSolverr (résolution du challenge Cloudflare) au lieu d'un client HTTP classique
   - la recherche texte n'utilise plus le formulaire `/search/albums` (bloqué au niveau serveur pour les requêtes automatisées) mais les pages publiques de catalogue par lettre, déjà accessibles sans restriction
+- **Fiche album et tomes de série jamais atteints** (bug préexistant) : l'identifiant BDGest (une URL complète) était mal encodé avant d'être inséré dans le chemin de la requête — `/` et `:` non échappés faisaient que la requête n'atteignait même pas le serveur (404 silencieux, affiché comme une erreur générique illisible). "Rafraîchir les infos" et "Voir les tomes" fonctionnent à nouveau. L'app affiche désormais le vrai message d'erreur du serveur en cas d'échec, au lieu d'un message Swift générique
 
 ### Modifié
 
