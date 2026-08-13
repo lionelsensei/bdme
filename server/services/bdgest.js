@@ -103,6 +103,20 @@ async function fetchPage(url, session) {
   return data.solution.response;
 }
 
+// Le formulaire de recherche est protégé par un jeton anti-CSRF à double
+// soumission (cookie csrf_cookie_bel + champ caché csrf_token_bel, valeurs
+// identiques). Sans ce paramètre dans l'URL, /search/albums réaffiche
+// silencieusement le formulaire vide (pas d'erreur, juste 0 résultat) — et
+// un jeton périmé (page précédente, session différente) échoue aussi car
+// il ne correspond plus au cookie courant. On récupère donc un jeton frais
+// juste avant chaque recherche, dans la même session FlareSolverr (le
+// cookie associé suit automatiquement).
+async function fetchSearchCsrfToken(session) {
+  const html = await fetchPage(`${BASE}/search/albums`, session);
+  const $ = cheerio.load(html);
+  return $('input[name="csrf_token_bel"]').first().val() || '';
+}
+
 // ── Authentification (session FlareSolverr persistante) ────────
 async function getSession(login, password) {
   if (_session && Date.now() < _expiry) return _session;
@@ -208,6 +222,7 @@ async function search(query, credentials) {
 
   return withRetry(async () => {
     const session = await getSession(credentials.login, credentials.password);
+    const csrf = await fetchSearchCsrfToken(session);
 
     const params = new URLSearchParams({
       RechIdSerie: '', RechIdAuteur: '',
@@ -217,6 +232,7 @@ async function search(query, credentials) {
       RechParution:'', RechOrigine: '', RechLangue: '',
       RechMotCle:  '', RechDLDeb:   '', RechDLFin:  '',
       RechCoteMin: '', RechCoteMax: '', RechEO: '0',
+      csrf_token_bel: csrf,
     });
 
     try {
@@ -245,6 +261,7 @@ async function searchByISBN(ean, credentials) {
   try {
     return await withRetry(async () => {
       const session = await getSession(credentials.login, credentials.password);
+      const csrf = await fetchSearchCsrfToken(session);
 
       const params = new URLSearchParams({
         RechIdSerie: '', RechIdAuteur: '',
@@ -253,6 +270,7 @@ async function searchByISBN(ean, credentials) {
         RechParution:'', RechOrigine:  '', RechLangue:  '',
         RechMotCle:  '', RechDLDeb:    '', RechDLFin:   '',
         RechCoteMin: '', RechCoteMax:  '', RechEO:      '0',
+        csrf_token_bel: csrf,
       });
 
       const html = await fetchPage(`${BASE}/search/albums?${params.toString()}`, session);
