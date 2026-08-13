@@ -224,9 +224,15 @@ async function search(query, credentials) {
     const session = await getSession(credentials.login, credentials.password);
     const csrf = await fetchSearchCsrfToken(session);
 
+    // RechSerie seul échoue désormais si la valeur ne correspond pas à
+    // l'ID d'une série existante (résolu normalement via l'autocomplétion
+    // JS du site) — le formulaire est silencieusement rejeté (0 résultat).
+    // RechTitre (recherche plein texte sur le titre) n'a pas cette
+    // contrainte. On envoie les deux : ça couvre à la fois les séries
+    // exactes et les titres/mots partiels, sans jamais déclencher le rejet.
     const params = new URLSearchParams({
       RechIdSerie: '', RechIdAuteur: '',
-      RechSerie:   query, RechTitre: '',
+      RechSerie:   query, RechTitre: query,
       RechEditeur: '', RechCollection: '',
       RechStyle:   '', RechAuteur: '', RechISBN: '',
       RechParution:'', RechOrigine: '', RechLangue: '',
