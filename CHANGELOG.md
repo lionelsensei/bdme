@@ -5,6 +5,20 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.7.4] — 2026-08-13
+
+### Corrigé
+
+- **Recherche BDGest** : la recherche était devenue totalement inopérante (blocage anti-bot Cloudflare puis rejet silencieux par le formulaire de recherche du site). Contournement complet :
+  - toutes les requêtes vers bedetheque.com passent désormais par FlareSolverr (résolution du challenge Cloudflare) au lieu d'un client HTTP classique
+  - la recherche texte n'utilise plus le formulaire `/search/albums` (bloqué au niveau serveur pour les requêtes automatisées) mais les pages publiques de catalogue par lettre, déjà accessibles sans restriction
+
+### Modifié
+
+- **Recherche BDGest** : un résultat de recherche représente désormais une série (le formulaire de recherche par album n'étant plus utilisable) — un bouton "Voir les tomes" liste les albums de la série et permet de choisir celui à ajouter à la collection ou aux souhaits
+
+---
+
 ## [1.7.3] — 2026-08-11
 
 ### Corrigé

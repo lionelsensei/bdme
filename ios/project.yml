@@ -9,8 +9,8 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: K52D9XXV9P
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "1.7.3"
-    CURRENT_PROJECT_VERSION: "13"
+    MARKETING_VERSION: "1.7.4"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
   BDme:
     type: application
