@@ -2,11 +2,18 @@
  * Service Bedetheque / BDGest
  * Scraping HTML de bedetheque.com (base de données BDGest).
  * Nécessite un compte BDGest (identifiants stockés dans bdme_api_keys, service='bdgest').
+ *
+ * bedetheque.com est protégé par Cloudflare (Bot Fight Mode). Un cookie
+ * cf_clearance obtenu par un navigateur headless (FlareSolverr) ne suffit
+ * pas s'il est ensuite réutilisé par un client HTTP classique (axios) :
+ * Cloudflare semble aussi vérifier la cohérence de l'empreinte TLS du
+ * client, pas seulement le cookie — observé empiriquement (403 malgré un
+ * cf_clearance valide). Toutes les requêtes passent donc par FlareSolverr
+ * (même navigateur headless du début à la fin d'une session), via une
+ * session persistante pour ne pas re-résoudre le challenge à chaque appel.
  */
 
 const axios     = require('axios');
-const { wrapper } = require('axios-cookiejar-support');
-const { CookieJar } = require('tough-cookie');
 const cheerio   = require('cheerio');
 const NodeCache = require('node-cache');
 
@@ -14,7 +21,7 @@ const cache = new NodeCache({ stdTTL: 3600 });
 const BASE  = 'https://www.bedetheque.com';
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'http://127.0.0.1:8191/v1';
 
-let _client  = null;
+let _session = null;
 let _expiry  = 0;
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -53,11 +60,6 @@ function resetCircuit() {
 }
 
 // ── Retry avec backoff exponentiel ─────────────────────────────
-// Une requête bedetheque peut échouer ponctuellement (timeout, session
-// expirée en cours de route) : on retente avant d'abandonner, en
-// invalidant la session entre chaque tentative pour forcer une
-// reconnexion propre. Si le circuit est ouvert (blocage détecté), on
-// n'insiste pas du tout.
 async function withRetry(fn, { attempts = 3, baseDelayMs = 800 } = {}) {
   if (isCircuitOpen()) {
     throw new Error(`Bedetheque temporairement indisponible (blocage réseau détecté) — réessayez dans ~${circuitRemainingMinutes()} min.`);
@@ -82,71 +84,41 @@ async function withRetry(fn, { attempts = 3, baseDelayMs = 800 } = {}) {
   throw lastErr;
 }
 
-// ── FlareSolverr : résolution du challenge anti-bot Cloudflare ─
-// bedetheque.com est derrière Cloudflare (Bot Fight Mode) : un client
-// HTTP classique (axios) se fait rejeter au niveau TLS ou reçoit un défi
-// JavaScript qu'il ne peut pas exécuter. FlareSolverr fait tourner un
-// vrai navigateur headless pour résoudre ce défi une fois et renvoie les
-// cookies (dont cf_clearance) + le User-Agent associé, réutilisés ensuite
-// pour toutes les requêtes normales via axios (rapide, pas de navigateur
-// à chaque appel).
-async function solveChallenge(url) {
+// ── FlareSolverr : toutes les requêtes bedetheque passent par ici ─
+async function fsRequest(cmd, params = {}) {
   const { data } = await axios.post(FLARESOLVERR_URL, {
-    cmd: 'request.get',
-    url,
+    cmd,
     maxTimeout: 45000,
+    ...params,
   }, { timeout: 50000 });
 
   if (data.status !== 'ok') {
-    throw new Error(`FlareSolverr: ${data.message || 'échec de résolution du challenge'}`);
+    throw new Error(`FlareSolverr: ${data.message || 'échec de résolution'}`);
   }
-  return { cookies: data.solution.cookies || [], userAgent: data.solution.userAgent };
+  return data;
 }
 
-// ── Client HTTP avec gestion des cookies ──────────────────────
-async function createClient() {
-  const { cookies, userAgent } = await solveChallenge(`${BASE}/connect/login`);
-
-  const jar = new CookieJar();
-  for (const c of cookies) {
-    const domain = (c.domain || '').replace(/^\./, '');
-    const cookieStr = `${c.name}=${c.value}; Domain=${domain}; Path=${c.path || '/'}`;
-    try {
-      await jar.setCookie(cookieStr, BASE);
-    } catch (err) {
-      console.warn('[BDGest] Cookie ignoré:', c.name, err.message);
-    }
-  }
-
-  return wrapper(axios.create({
-    jar,
-    timeout: 15000,
-    withCredentials: true,
-    maxRedirects: 10,
-    headers: {
-      'User-Agent':      userAgent || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-      'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    },
-  }));
+async function fetchPage(url, session) {
+  const data = await fsRequest('request.get', { url, session });
+  return data.solution.response;
 }
 
-// ── Authentification ──────────────────────────────────────────
-async function getClient(login, password) {
-  if (_client && Date.now() < _expiry) return _client;
+// ── Authentification (session FlareSolverr persistante) ────────
+async function getSession(login, password) {
+  if (_session && Date.now() < _expiry) return _session;
 
-  _client  = null;
+  _session = null;
   _expiry  = 0;
 
-  const client = await createClient();
+  const { session } = await fsRequest('sessions.create');
 
   try {
     // 1. Charger la page de login pour récupérer le token CSRF
-    const loginPage = await client.get(`${BASE}/connect/login`);
-    const $l = cheerio.load(loginPage.data);
+    const loginHtml = await fetchPage(`${BASE}/connect/login`, session);
+    const $l = cheerio.load(loginHtml);
     const csrf = $l('input[name="csrf_token_bel"]').first().val() || '';
 
-    // 2. Soumettre le formulaire de connexion
+    // 2. Soumettre le formulaire de connexion (via le même navigateur headless)
     const form = new URLSearchParams();
     form.append('pseudo',          login);
     form.append('password',        password);
@@ -154,22 +126,25 @@ async function getClient(login, password) {
     form.append('auto_connect',    '1');
     form.append('page_source',     BASE + '/');
 
-    const resp = await client.post(`${BASE}/connect/login`, form.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `${BASE}/connect/login` },
+    const resp = await fsRequest('request.post', {
+      url: `${BASE}/connect/login`,
+      session,
+      postData: form.toString(),
     });
 
     // Vérifier que la connexion a réussi (si le champ pseudo est encore visible → échec)
-    const $c = cheerio.load(resp.data);
+    const $c = cheerio.load(resp.solution.response);
     if ($c('input[name="pseudo"]').length > 0) {
       throw new Error('Identifiants BDGest incorrects — vérifiez dans l\'admin.');
     }
 
-    _client = client;
-    _expiry = Date.now() + 30 * 60 * 1000; // 30 min — cf_clearance a une durée de vie limitée
-    console.log('[BDGest] Connexion OK (via FlareSolverr)');
-    return client;
+    _session = session;
+    _expiry  = Date.now() + 30 * 60 * 1000; // 30 min
+    console.log(`[BDGest] Connexion OK (FlareSolverr, session ${session})`);
+    return session;
 
   } catch (err) {
+    fsRequest('sessions.destroy', { session }).catch(() => {});
     console.error('[BDGest] Échec connexion:', err.message);
     throw new Error(err.message.startsWith('Identifiants') ? err.message : 'Connexion à Bedetheque échouée.');
   }
@@ -232,23 +207,21 @@ async function search(query, credentials) {
   if (cached) return cached;
 
   return withRetry(async () => {
-    const client = await getClient(credentials.login, credentials.password);
+    const session = await getSession(credentials.login, credentials.password);
+
+    const params = new URLSearchParams({
+      RechIdSerie: '', RechIdAuteur: '',
+      RechSerie:   query, RechTitre: '',
+      RechEditeur: '', RechCollection: '',
+      RechStyle:   '', RechAuteur: '', RechISBN: '',
+      RechParution:'', RechOrigine: '', RechLangue: '',
+      RechMotCle:  '', RechDLDeb:   '', RechDLFin:  '',
+      RechCoteMin: '', RechCoteMax: '', RechEO: '0',
+    });
 
     try {
-      const { data } = await client.get(`${BASE}/search/albums`, {
-        params: {
-          RechIdSerie: '', RechIdAuteur: '',
-          RechSerie:   query, RechTitre: '',
-          RechEditeur: '', RechCollection: '',
-          RechStyle:   '', RechAuteur: '', RechISBN: '',
-          RechParution:'', RechOrigine: '', RechLangue: '',
-          RechMotCle:  '', RechDLDeb:   '', RechDLFin:  '',
-          RechCoteMin: '', RechCoteMax: '', RechEO: '0',
-        },
-        headers: { Referer: `${BASE}/search` },
-      });
-
-      const $ = cheerio.load(data);
+      const html = await fetchPage(`${BASE}/search/albums?${params.toString()}`, session);
+      const $ = cheerio.load(html);
       const results = parseResults($);
       console.log(`[BDGest] Recherche "${query}" → ${results.length} résultats`);
 
@@ -271,20 +244,19 @@ async function searchByISBN(ean, credentials) {
 
   try {
     return await withRetry(async () => {
-      const client = await getClient(credentials.login, credentials.password);
-      const { data } = await client.get(`${BASE}/search/albums`, {
-        params: {
-          RechIdSerie: '', RechIdAuteur: '',
-          RechSerie:   '', RechTitre:    '', RechEditeur: '', RechCollection: '',
-          RechStyle:   '', RechAuteur:   '', RechISBN:    ean,
-          RechParution:'', RechOrigine:  '', RechLangue:  '',
-          RechMotCle:  '', RechDLDeb:    '', RechDLFin:   '',
-          RechCoteMin: '', RechCoteMax:  '', RechEO:      '0',
-        },
-        headers: { Referer: `${BASE}/search` },
+      const session = await getSession(credentials.login, credentials.password);
+
+      const params = new URLSearchParams({
+        RechIdSerie: '', RechIdAuteur: '',
+        RechSerie:   '', RechTitre:    '', RechEditeur: '', RechCollection: '',
+        RechStyle:   '', RechAuteur:   '', RechISBN:    ean,
+        RechParution:'', RechOrigine:  '', RechLangue:  '',
+        RechMotCle:  '', RechDLDeb:    '', RechDLFin:   '',
+        RechCoteMin: '', RechCoteMax:  '', RechEO:      '0',
       });
 
-      const $ = cheerio.load(data);
+      const html = await fetchPage(`${BASE}/search/albums?${params.toString()}`, session);
+      const $ = cheerio.load(html);
       const results = parseResults($);
       const result  = results.length > 0 ? { ...results[0], ean } : null;
       if (result) cache.set(cacheKey, result);
@@ -309,9 +281,9 @@ async function getAlbumDetails(albumUrl, credentials) {
 
   try {
     return await withRetry(async () => {
-      const client = await getClient(credentials.login, credentials.password);
-      const { data } = await client.get(albumUrl);
-      const $ = cheerio.load(data);
+      const session = await getSession(credentials.login, credentials.password);
+      const html = await fetchPage(albumUrl, session);
+      const $ = cheerio.load(html);
 
       // Bedetheque utilise Schema.org microdata (itemprop)
       // Auteurs : premier itemprop="author" hors des avis (dans .liste-auteurs)
@@ -392,12 +364,12 @@ async function getSeriesTomes(seriesUrl, credentials) {
 
   try {
     return await withRetry(async () => {
-      const client = await getClient(credentials.login, credentials.password);
+      const session = await getSession(credentials.login, credentials.password);
       // "__10000.html" affiche tous les tomes de la série sur une seule page
       // (pagination bedetheque désactivée au-delà de ce seuil).
       const allUrl = seriesUrl.replace(/\.html$/, '__10000.html');
-      const { data } = await client.get(allUrl);
-      const $ = cheerio.load(data);
+      const html = await fetchPage(allUrl, session);
+      const $ = cheerio.load(html);
 
       const tomes = [];
       $('ul.liste-albums > li[itemscope]').each((_, el) => {
@@ -432,8 +404,11 @@ async function getSeriesTomes(seriesUrl, credentials) {
 }
 
 function invalidateSession() {
-  _client = null;
-  _expiry = 0;
+  if (_session) {
+    fsRequest('sessions.destroy', { session: _session }).catch(() => {});
+  }
+  _session = null;
+  _expiry  = 0;
 }
 
 module.exports = { search, searchByISBN, getAlbumDetails, getSeriesTomes, invalidateSession };
