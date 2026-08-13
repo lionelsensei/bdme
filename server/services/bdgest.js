@@ -12,6 +12,7 @@ const NodeCache = require('node-cache');
 
 const cache = new NodeCache({ stdTTL: 3600 });
 const BASE  = 'https://www.bedetheque.com';
+const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'http://127.0.0.1:8191/v1';
 
 let _client  = null;
 let _expiry  = 0;
@@ -81,16 +82,49 @@ async function withRetry(fn, { attempts = 3, baseDelayMs = 800 } = {}) {
   throw lastErr;
 }
 
+// ── FlareSolverr : résolution du challenge anti-bot Cloudflare ─
+// bedetheque.com est derrière Cloudflare (Bot Fight Mode) : un client
+// HTTP classique (axios) se fait rejeter au niveau TLS ou reçoit un défi
+// JavaScript qu'il ne peut pas exécuter. FlareSolverr fait tourner un
+// vrai navigateur headless pour résoudre ce défi une fois et renvoie les
+// cookies (dont cf_clearance) + le User-Agent associé, réutilisés ensuite
+// pour toutes les requêtes normales via axios (rapide, pas de navigateur
+// à chaque appel).
+async function solveChallenge(url) {
+  const { data } = await axios.post(FLARESOLVERR_URL, {
+    cmd: 'request.get',
+    url,
+    maxTimeout: 45000,
+  }, { timeout: 50000 });
+
+  if (data.status !== 'ok') {
+    throw new Error(`FlareSolverr: ${data.message || 'échec de résolution du challenge'}`);
+  }
+  return { cookies: data.solution.cookies || [], userAgent: data.solution.userAgent };
+}
+
 // ── Client HTTP avec gestion des cookies ──────────────────────
-function createClient() {
+async function createClient() {
+  const { cookies, userAgent } = await solveChallenge(`${BASE}/connect/login`);
+
   const jar = new CookieJar();
+  for (const c of cookies) {
+    const domain = (c.domain || '').replace(/^\./, '');
+    const cookieStr = `${c.name}=${c.value}; Domain=${domain}; Path=${c.path || '/'}`;
+    try {
+      await jar.setCookie(cookieStr, BASE);
+    } catch (err) {
+      console.warn('[BDGest] Cookie ignoré:', c.name, err.message);
+    }
+  }
+
   return wrapper(axios.create({
     jar,
     timeout: 15000,
     withCredentials: true,
     maxRedirects: 10,
     headers: {
-      'User-Agent':      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'User-Agent':      userAgent || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
       'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     },
@@ -104,7 +138,7 @@ async function getClient(login, password) {
   _client  = null;
   _expiry  = 0;
 
-  const client = createClient();
+  const client = await createClient();
 
   try {
     // 1. Charger la page de login pour récupérer le token CSRF
@@ -131,8 +165,8 @@ async function getClient(login, password) {
     }
 
     _client = client;
-    _expiry = Date.now() + 55 * 60 * 1000; // 55 min
-    console.log('[BDGest] Connexion OK');
+    _expiry = Date.now() + 30 * 60 * 1000; // 30 min — cf_clearance a une durée de vie limitée
+    console.log('[BDGest] Connexion OK (via FlareSolverr)');
     return client;
 
   } catch (err) {
