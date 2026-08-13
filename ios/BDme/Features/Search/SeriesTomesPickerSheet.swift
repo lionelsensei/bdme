@@ -77,7 +77,11 @@ struct SeriesTomesPickerSheet: View {
             series: series.title,
             tome: tome.tome,
             author: nil, illustrator: nil, publisher: nil, year: nil, genre: nil, ean: nil,
-            coverURL: tome.coverURL, synopsis: nil
+            coverURL: tome.coverURL, synopsis: nil,
+            // On connaît déjà l'URL de la série ici (c'est elle qui a permis
+            // de lister ce tome) — inutile d'attendre l'enrichissement pour
+            // que la détection des tomes manquants fonctionne.
+            seriesBdgestId: series.bdgestId
         )
     }
 

@@ -299,15 +299,18 @@ struct BookDetailModal: View {
 
     /// Filet de sécurité : si l'enrichissement proactif à l'ajout (voir
     /// LibraryStore.addBookEnriching) n'a pas eu lieu ou a échoué, on
-    /// retente à l'ouverture du détail. Idempotent (BookEnricher ne fait
-    /// rien si les infos sont déjà là). `force: true` (bouton manuel)
-    /// affiche l'erreur au lieu de l'avaler silencieusement.
+    /// retente à l'ouverture du détail (sans `force`, no-op si les infos
+    /// sont déjà là). `force: true` (bouton manuel) affiche l'erreur au
+    /// lieu de l'avaler silencieusement, ET re-fetch même si auteur/
+    /// synopsis sont déjà présents — sinon un album partiellement enrichi
+    /// avant un correctif serveur (ex: seriesBdgestId manquant) restait
+    /// bloqué pour toujours malgré le clic sur "Rafraîchir".
     private func enrichIfNeeded(force: Bool = false) async {
         isEnriching = true
         enrichError = nil
         defer { isEnriching = false }
         do {
-            book = try await BookEnricher.enrich(book)
+            book = try await BookEnricher.enrich(book, force: force)
             library.updateBook(book)
         } catch is BookEnricher.Skip {
             // Rien à faire.

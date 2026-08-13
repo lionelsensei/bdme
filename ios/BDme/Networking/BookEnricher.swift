@@ -11,9 +11,14 @@ enum BookEnricher {
 
     /// Version "throwing" : propage l'erreur réseau pour que l'appelant
     /// puisse l'afficher (ex: LibraryStore.lastError, bouton Rafraîchir).
-    static func enrich(_ book: Book) async throws -> Book {
+    /// `force` court-circuite le test "déjà complet" — sans lui, un album
+    /// avec auteur+synopsis mais sans `seriesBdgestId` (ex: fiche
+    /// enrichie avant que la récupération de l'URL de série ne
+    /// fonctionne) restait bloqué pour toujours, même via le bouton
+    /// manuel "Rafraîchir les infos".
+    static func enrich(_ book: Book, force: Bool = false) async throws -> Book {
         guard let bdgestId = book.bdgestId,
-              book.author == nil || book.synopsis == nil else {
+              force || book.author == nil || book.synopsis == nil else {
             throw Skip.nothingToDo
         }
 

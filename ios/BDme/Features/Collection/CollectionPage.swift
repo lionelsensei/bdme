@@ -11,6 +11,9 @@ struct CollectionPage: View {
     @State private var statusFilter: ReadStatus?
     @State private var query = ""
     @State private var openedSeries: String?
+    /// Distinct de `openedSeries == nil` (qui signifie "rien d'ouvert") —
+    /// représente le dossier des albums sans série renseignée.
+    @State private var openedNoSeriesFolder = false
     @State private var openedCollection: BookCollection?
     @State private var selectedBook: Book?
     @State private var showScanSheet = false
@@ -26,7 +29,7 @@ struct CollectionPage: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if openedSeries == nil && openedCollection == nil {
+                    if openedSeries == nil && !openedNoSeriesFolder && openedCollection == nil {
                         searchAndFilters
                     } else {
                         breadcrumb
@@ -60,19 +63,19 @@ struct CollectionPage: View {
                     }
                     Menu {
                         Button {
-                            withAnimation { groupMode = .none; openedSeries = nil; openedCollection = nil }
+                            withAnimation { groupMode = .none; openedSeries = nil; openedNoSeriesFolder = false; openedCollection = nil }
                         } label: {
                             if groupMode == .none { Label("Aucun groupement", systemImage: "checkmark") }
                             else { Text("Aucun groupement") }
                         }
                         Button {
-                            withAnimation { groupMode = .series; openedSeries = nil; openedCollection = nil }
+                            withAnimation { groupMode = .series; openedSeries = nil; openedNoSeriesFolder = false; openedCollection = nil }
                         } label: {
                             if groupMode == .series { Label("Par série", systemImage: "checkmark") }
                             else { Text("Par série") }
                         }
                         Button {
-                            withAnimation { groupMode = .collection; openedSeries = nil; openedCollection = nil }
+                            withAnimation { groupMode = .collection; openedSeries = nil; openedNoSeriesFolder = false; openedCollection = nil }
                         } label: {
                             if groupMode == .collection { Label("Par collection", systemImage: "checkmark") }
                             else { Text("Par collection") }
@@ -178,7 +181,7 @@ struct CollectionPage: View {
     private var breadcrumb: some View {
         HStack(spacing: 6) {
             Button(openedCollection != nil ? "← Collections" : "← Séries") {
-                withAnimation { openedSeries = nil; openedCollection = nil }
+                withAnimation { openedSeries = nil; openedNoSeriesFolder = false; openedCollection = nil }
             }
             .font(BDTheme.sans(13))
             .foregroundColor(BDTheme.accent)
@@ -188,7 +191,7 @@ struct CollectionPage: View {
                     .font(BDTheme.sans(13))
                     .foregroundColor(BDTheme.text3)
             } else {
-                Text("· \(openedSeries ?? "") · \(booksInOpenedSeries.count) albums")
+                Text("· \(openedSeries ?? "Albums sans série") · \(booksInOpenedSeries.count) albums")
                     .font(BDTheme.sans(13))
                     .foregroundColor(BDTheme.text3)
             }
@@ -197,7 +200,7 @@ struct CollectionPage: View {
 
     private var booksInOpenedSeries: [Book] {
         filteredBooks
-            .filter { $0.series == openedSeries }
+            .filter { openedNoSeriesFolder ? $0.series == nil : $0.series == openedSeries }
             .sorted {
                 switch ($0.tome, $1.tome) {
                 case let (a?, b?): return a < b
@@ -212,8 +215,8 @@ struct CollectionPage: View {
     private var content: some View {
         if let openedCollection {
             bookCollection(filteredBooks.filter { $0.collectionIds.contains(openedCollection.id) }, currentCollection: openedCollection)
-        } else if let openedSeries {
-            bookCollection(booksInOpenedSeries.filter { $0.series == openedSeries })
+        } else if openedSeries != nil || openedNoSeriesFolder {
+            bookCollection(booksInOpenedSeries)
         } else {
             switch groupMode {
             case .none:
@@ -232,7 +235,10 @@ struct CollectionPage: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(groupedBySeries, id: \.series) { group in
                     Button {
-                        if let series = group.series { withAnimation { openedSeries = series } }
+                        withAnimation {
+                            if let series = group.series { openedSeries = series }
+                            else { openedNoSeriesFolder = true }
+                        }
                     } label: {
                         SeriesFolderCard(name: group.series ?? "Albums sans série", books: group.books)
                     }
@@ -243,7 +249,10 @@ struct CollectionPage: View {
             LazyVStack(spacing: 8) {
                 ForEach(groupedBySeries, id: \.series) { group in
                     Button {
-                        if let series = group.series { withAnimation { openedSeries = series } }
+                        withAnimation {
+                            if let series = group.series { openedSeries = series }
+                            else { openedNoSeriesFolder = true }
+                        }
                     } label: {
                         folderRow(title: group.series ?? "Albums sans série", count: group.books.count)
                     }
