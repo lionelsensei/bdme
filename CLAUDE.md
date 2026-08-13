@@ -68,6 +68,7 @@ Le projet Xcode (`BDme.xcodeproj`) est généré (donc gitignoré) — ne pas l'
 - **Retry + sérialisation** (`RetrySupport.swift`, et `withRetry`/`invalidateSession` côté `server/services/bdgest.js`) : chaque appel BDGest (app et serveur) retente avec backoff exponentiel avant d'abandonner ; `BDGestRequestQueue` sérialise les appels sortants de l'app pour éviter les rafales parallèles vers bedetheque.com (risque de blocage anti-bot).
 - **Circuit breaker** (côté serveur, `server/services/bdgest.js`) : après 3 échecs consécutifs (blocage anti-bot/TLS détecté), le circuit s'ouvre et refuse les requêtes suivantes immédiatement (sans toucher le réseau) pendant un temps de repos croissant (5 min → 2h), pour ne pas aggraver un blocage en cours. Se referme dès qu'une requête réussit.
 - **Cache hors-ligne** (`LocalCache.swift`, `OfflineCache`) : chaque recherche et fiche album réussie est mise en cache localement (dossier `Caches/`, hors iCloud — données dérivées, pas de sauvegarde nécessaire). En cas d'échec réseau, l'app retombe sur la dernière version connue. Visible/vidable depuis Réglages.
+- **Cache disque des couvertures** (`CachedAsyncImage.swift`, `CoverImageCache`) : remplace `AsyncImage` partout dans l'app — chaque couverture n'est téléchargée qu'une fois (dossier `Caches/`, clé = hash SHA256 de l'URL), puis servie depuis le disque. Visible/vidable depuis Réglages.
 - **Tomes manquants d'une série** : `getSeriesTomes` (serveur) scrape la page série BDGest (`__10000.html`, liste tous les tomes sur une page) ; `BookDetailModal` compare avec la bibliothèque et propose l'ajout rapide des tomes absents.
 
 ## Backend — `server/` (proxy BDGest uniquement)
@@ -156,7 +157,6 @@ enum Secrets {
 
 - Ajouter les fichiers `.ttf` DM Serif Display / DM Sans au bundle et réactiver `UIAppFonts` dans `project.yml`
 - Icône d'app définitive (actuellement un placeholder généré — rangée de livres aux couleurs du thème, `AppIcon.appiconset/icon-1024.png`)
-- Cache disque des couvertures (actuellement re-téléchargées à chaque affichage)
 - Import ponctuel de l'ancienne collection Supabase (export JSON → un fichier par album dans `BDme/Books/`)
 - Tests réels multi-appareils iCloud (édition simultanée, résolution de conflits) — le simulateur iOS gère mal iCloud Drive, nécessite des devices physiques (deux appareils déjà appairés en local : iPhone "Yopro 17", iPad "YoyoPad (2)")
 

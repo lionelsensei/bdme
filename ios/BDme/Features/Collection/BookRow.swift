@@ -6,7 +6,7 @@ struct BookRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
+            CachedAsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
                 if case .success(let image) = phase {
                     image.resizable().aspectRatio(contentMode: .fill)
                 } else {

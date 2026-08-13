@@ -7,7 +7,7 @@ struct BookCard: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             GeometryReader { geo in
-                AsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
+                CachedAsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable().aspectRatio(contentMode: .fill)

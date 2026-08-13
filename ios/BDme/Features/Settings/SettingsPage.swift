@@ -11,6 +11,7 @@ struct SettingsPage: View {
     @State private var bdgestProxyToken = KeychainStore.shared.read(key: .bdgestProxyToken) ?? ""
     @State private var saved = false
     @State private var cacheEntryCount: (albums: Int, searches: Int, series: Int)?
+    @State private var coverCacheCount: Int?
 
     var body: some View {
         NavigationStack {
@@ -76,6 +77,24 @@ struct SettingsPage: View {
                     .foregroundColor(BDTheme.red)
                 }
 
+                Section("Couvertures") {
+                    if let coverCacheCount {
+                        Text("\(coverCacheCount) couvertures en cache local")
+                            .font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+                    } else {
+                        Text("Chargement…").font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
+                    }
+                    Text("Chaque couverture n'est téléchargée qu'une fois, puis réutilisée depuis le stockage local.")
+                        .font(BDTheme.sans(12)).foregroundColor(BDTheme.text3)
+                    Button("Vider le cache des couvertures") {
+                        Task {
+                            await CoverImageCache.shared.clear()
+                            await loadCacheStats()
+                        }
+                    }
+                    .foregroundColor(BDTheme.red)
+                }
+
                 if !library.recentErrors.isEmpty {
                     Section("Erreurs récentes") {
                         ForEach(library.recentErrors.indices, id: \.self) { idx in
@@ -109,6 +128,7 @@ struct SettingsPage: View {
             searches: await OfflineCache.searchResults.count(),
             series: await OfflineCache.seriesTomes.count()
         )
+        coverCacheCount = await CoverImageCache.shared.count()
     }
 }
 

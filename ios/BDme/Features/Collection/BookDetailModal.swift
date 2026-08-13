@@ -79,7 +79,7 @@ struct BookDetailModal: View {
                 Text("Tomes manquants de la série").font(BDTheme.sans(12.5)).foregroundColor(BDTheme.text3)
                 ForEach(missing) { tome in
                     HStack(spacing: 10) {
-                        AsyncImage(url: tome.coverURL.flatMap(URL.init(string:))) { phase in
+                        CachedAsyncImage(url: tome.coverURL.flatMap(URL.init(string:))) { phase in
                             if case .success(let image) = phase {
                                 image.resizable().aspectRatio(contentMode: .fill)
                             } else {
@@ -141,7 +141,7 @@ struct BookDetailModal: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 14) {
-            AsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
+            CachedAsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
                 if case .success(let image) = phase {
                     image.resizable().aspectRatio(contentMode: .fill)
                 } else {

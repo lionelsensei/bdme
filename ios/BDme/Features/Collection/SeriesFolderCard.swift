@@ -44,7 +44,7 @@ struct SeriesFolderCard: View {
     }
 
     private func cover(_ book: Book, size: CGSize) -> some View {
-        AsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
+        CachedAsyncImage(url: book.coverURL.flatMap(URL.init(string:))) { phase in
             if case .success(let image) = phase {
                 image.resizable().aspectRatio(contentMode: .fill)
             } else {

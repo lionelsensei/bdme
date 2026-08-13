@@ -41,7 +41,7 @@ private struct WishlistRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: item.coverURL.flatMap(URL.init(string:))) { phase in
+            CachedAsyncImage(url: item.coverURL.flatMap(URL.init(string:))) { phase in
                 if case .success(let image) = phase {
                     image.resizable().aspectRatio(contentMode: .fill)
                 } else {
